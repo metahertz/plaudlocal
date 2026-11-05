@@ -361,7 +361,8 @@ final class PlaudAuthService: NSObject, ObservableObject {
         guard token.count > 1 + 8 + 16 + 32, token[0] == 0x80 else {
             throw PlaudAuthError.decryptFailed
         }
-        guard let key = Data(base64Encoded: Self.fernetKeyB64), key.count == 32 else {
+        // Key is URL-safe base64 (contains '-' / '_'); std Swift base64 decode fails.
+        guard let key = Self.base64URLDecode(Self.fernetKeyB64), key.count == 32 else {
             throw PlaudAuthError.decryptFailed
         }
         let signingKey = key.prefix(16)
@@ -374,6 +375,12 @@ final class PlaudAuthService: NSObject, ObservableObject {
         let iv = token.subdata(in: 9..<25)
         let cipher = token.subdata(in: 25..<(token.count - 32))
         return try AES128CBCDecrypt(key: Data(encryptionKey), iv: iv, data: cipher)
+    }
+
+    /// Test seam: decrypt a Fernet token produced with Plaud's embedded key.
+    static func decryptFernetForTests(_ tokenUTF8: String) throws -> Data {
+        let service = PlaudAuthService(keyVault: KeyVault(service: "com.local.plaudlocal.fernet.tests"))
+        return try service.decryptFernet(Data(tokenUTF8.utf8))
     }
 }
 

@@ -26,6 +26,7 @@
 		68E6150A79526FCAB6A1C26C /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA51A15CC8884322EF457C62 /* LibraryView.swift */; };
 		86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */; };
 		87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B740F5AFE909ABC292736738 /* KeyVaultTests.swift */; };
+		89800C5F080DAB971EB37CC5 /* FernetDecryptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 367367B1B2040E1D8FC12CC5 /* FernetDecryptTests.swift */; };
 		8D0B4F5423C2CB94F5A17AA5 /* PlaudAuthRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BC0039F04E98EA354D34E0 /* PlaudAuthRoutingTests.swift */; };
 		938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 788122B7CBD9855AC6C57AE1 /* Assets.xcassets */; };
 		98BC73BF565F7EF31BB834FE /* BLEClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4002409F35D5285E4F060121 /* BLEClient.swift */; };
@@ -61,6 +62,7 @@
 		29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodecTests.swift; sourceTree = "<group>"; };
 		2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLocalApp.swift; sourceTree = "<group>"; };
 		30B18E31443600A6D7A355F8 /* PlaudLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLoginView.swift; sourceTree = "<group>"; };
+		367367B1B2040E1D8FC12CC5 /* FernetDecryptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FernetDecryptTests.swift; sourceTree = "<group>"; };
 		3A25521F7B309F2454410A3C /* PlaudLocal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PlaudLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4002409F35D5285E4F060121 /* BLEClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEClient.swift; sourceTree = "<group>"; };
 		461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionModelTests.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 				461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */,
 				DE8D6A6028570D1CAC28DD5B /* DownloadResumeTests.swift */,
 				61D11ACD4F90A37D96C3FFE8 /* ExporterTests.swift */,
+				367367B1B2040E1D8FC12CC5 /* FernetDecryptTests.swift */,
 				564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */,
 				B740F5AFE909ABC292736738 /* KeyVaultTests.swift */,
 				E7CB45D6E11CEE644DBFEFD0 /* NotePipelineExportTests.swift */,
@@ -341,6 +344,7 @@
 				DBDC677D92C260D6E9B44E2B /* DeviceSessionModelTests.swift in Sources */,
 				2EEF88E6F163823ABCFB3C8D /* DownloadResumeTests.swift in Sources */,
 				F10EDAAFA1BEE6EA8AE57620 /* ExporterTests.swift in Sources */,
+				89800C5F080DAB971EB37CC5 /* FernetDecryptTests.swift in Sources */,
 				5FB91DCE7FA38655F1F1AF2C /* FileDecryptorTests.swift in Sources */,
 				87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */,
 				33CB636C2CC201BFBE2E12DE /* NotePipelineExportTests.swift in Sources */,
