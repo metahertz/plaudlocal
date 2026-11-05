@@ -12,11 +12,11 @@ struct PlaudLocalApp: App {
 struct ContentView: View {
     var body: some View {
         TabView {
-            Text("Library")
+            LibraryView()
                 .tabItem { Label("Library", systemImage: "list.bullet") }
-            Text("Device")
+            DeviceView()
                 .tabItem { Label("Device", systemImage: "wave.3.right") }
-            Text("Settings")
+            SettingsView()
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
     }

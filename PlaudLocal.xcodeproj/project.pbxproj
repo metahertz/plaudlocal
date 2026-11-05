@@ -7,21 +7,36 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00B5DD6D4CBB3960BFF770AE /* NotePipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF1AD235592205C748FF690 /* NotePipelineTests.swift */; };
+		01053725DACC05E11BC94414 /* SummarizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D737CE62F747F7F0ED622749 /* SummarizerTests.swift */; };
+		01A42D2BFA1FC9B6F83B9C28 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B471ABEC328E06AEC20FE673 /* SettingsView.swift */; };
 		118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */; };
 		21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E92FA3ED80038CBD840BC1 /* KeyVault.swift */; };
 		22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0041582B292F5363E6379903 /* SessionCryptoTests.swift */; };
+		24413BFAEEEE7443B4BDE50F /* NotePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9778E15DF6E96CA8A1C345B /* NotePipeline.swift */; };
+		369EF50D3E103D3DC059B7C0 /* NoteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0007114DCF152C74FD76079 /* NoteModels.swift */; };
 		42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */; };
+		502874D9A4F9F0D8BF72A4A2 /* Exporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF85ACEA87D2B5D4B22C69ED /* Exporter.swift */; };
+		56671537EDBA635FC686C30C /* NoteStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDBCA944C70E70000CC8B16A /* NoteStoreTests.swift */; };
+		5F08124A2049B366052274DB /* NoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC058351B75B49FE1F6BD76C /* NoteDetailView.swift */; };
 		5FB91DCE7FA38655F1F1AF2C /* FileDecryptorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */; };
+		68E6150A79526FCAB6A1C26C /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA51A15CC8884322EF457C62 /* LibraryView.swift */; };
 		86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */; };
 		87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B740F5AFE909ABC292736738 /* KeyVaultTests.swift */; };
 		938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 788122B7CBD9855AC6C57AE1 /* Assets.xcassets */; };
 		98BC73BF565F7EF31BB834FE /* BLEClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4002409F35D5285E4F060121 /* BLEClient.swift */; };
 		997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */; };
 		A0B37C813BEAAD679CC52050 /* FileDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DAB78505E9AD303B1D308A8 /* FileDecryptor.swift */; };
+		A54245F8433064C21C5C300F /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A173362806F97EB898C12D0D /* NoteStore.swift */; };
 		B68EF78D6495E367F55E6923 /* DeviceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C51CE38FC64DEBE7F9CED893 /* DeviceView.swift */; };
+		B6BB0E17BF27FB9F9FB4625E /* WebDAVClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86035177B283822D5BB5279E /* WebDAVClient.swift */; };
 		CD8194DC0CC399891D5DE4BE /* DeviceSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBB0D11695DE3C3D74642959 /* DeviceSessionModel.swift */; };
 		DBDC677D92C260D6E9B44E2B /* DeviceSessionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */; };
+		DDEE3C4CC603E6144DFA4692 /* WebDAVClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B43D6AACE6C66BEC2FAA207 /* WebDAVClientTests.swift */; };
 		E5A437C9228006AAE9F00ACB /* PlaudAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60BE1B591435772E12DF5B3A /* PlaudAuthService.swift */; };
+		EECBD97D324510E7769C8E55 /* Transcriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1ADAF86BC71E404D640166 /* Transcriber.swift */; };
+		F10EDAAFA1BEE6EA8AE57620 /* ExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61D11ACD4F90A37D96C3FFE8 /* ExporterTests.swift */; };
+		F8FA575BDBD0A9AAB98E418B /* Summarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141B14950618AC0DCD9BF5BD /* Summarizer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,23 +51,38 @@
 
 /* Begin PBXFileReference section */
 		0041582B292F5363E6379903 /* SessionCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCryptoTests.swift; sourceTree = "<group>"; };
+		0D1ADAF86BC71E404D640166 /* Transcriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcriber.swift; sourceTree = "<group>"; };
+		0DF1AD235592205C748FF690 /* NotePipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePipelineTests.swift; sourceTree = "<group>"; };
+		141B14950618AC0DCD9BF5BD /* Summarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Summarizer.swift; sourceTree = "<group>"; };
 		29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodecTests.swift; sourceTree = "<group>"; };
 		2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLocalApp.swift; sourceTree = "<group>"; };
 		3A25521F7B309F2454410A3C /* PlaudLocal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PlaudLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4002409F35D5285E4F060121 /* BLEClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEClient.swift; sourceTree = "<group>"; };
 		461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionModelTests.swift; sourceTree = "<group>"; };
+		4B43D6AACE6C66BEC2FAA207 /* WebDAVClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClientTests.swift; sourceTree = "<group>"; };
 		564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDecryptorTests.swift; sourceTree = "<group>"; };
 		60BE1B591435772E12DF5B3A /* PlaudAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudAuthService.swift; sourceTree = "<group>"; };
+		61D11ACD4F90A37D96C3FFE8 /* ExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExporterTests.swift; sourceTree = "<group>"; };
 		6DAB78505E9AD303B1D308A8 /* FileDecryptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDecryptor.swift; sourceTree = "<group>"; };
 		788122B7CBD9855AC6C57AE1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7DE381D776BEB69ACFDCEEBF /* PlaudLocalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PlaudLocalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8270AEF1AEA5926CF99317C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		86035177B283822D5BB5279E /* WebDAVClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClient.swift; sourceTree = "<group>"; };
 		92E92FA3ED80038CBD840BC1 /* KeyVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVault.swift; sourceTree = "<group>"; };
+		A173362806F97EB898C12D0D /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
 		A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCrypto.swift; sourceTree = "<group>"; };
 		ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodec.swift; sourceTree = "<group>"; };
+		B471ABEC328E06AEC20FE673 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B740F5AFE909ABC292736738 /* KeyVaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVaultTests.swift; sourceTree = "<group>"; };
+		BDBCA944C70E70000CC8B16A /* NoteStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStoreTests.swift; sourceTree = "<group>"; };
+		BF85ACEA87D2B5D4B22C69ED /* Exporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Exporter.swift; sourceTree = "<group>"; };
 		C51CE38FC64DEBE7F9CED893 /* DeviceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceView.swift; sourceTree = "<group>"; };
+		D0007114DCF152C74FD76079 /* NoteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteModels.swift; sourceTree = "<group>"; };
+		D737CE62F747F7F0ED622749 /* SummarizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizerTests.swift; sourceTree = "<group>"; };
+		D9778E15DF6E96CA8A1C345B /* NotePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePipeline.swift; sourceTree = "<group>"; };
+		FA51A15CC8884322EF457C62 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		FBB0D11695DE3C3D74642959 /* DeviceSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionModel.swift; sourceTree = "<group>"; };
+		FC058351B75B49FE1F6BD76C /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -64,6 +94,7 @@
 				2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */,
 				5DDBA09C90511E7E952DA246 /* DeviceSession */,
 				2DD4E6520010465E16059DBE /* Features */,
+				6CD378762A2DF15BBCAC8B5E /* NotePipeline */,
 			);
 			path = PlaudLocal;
 			sourceTree = "<group>";
@@ -72,10 +103,15 @@
 			isa = PBXGroup;
 			children = (
 				461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */,
+				61D11ACD4F90A37D96C3FFE8 /* ExporterTests.swift */,
 				564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */,
 				B740F5AFE909ABC292736738 /* KeyVaultTests.swift */,
+				0DF1AD235592205C748FF690 /* NotePipelineTests.swift */,
+				BDBCA944C70E70000CC8B16A /* NoteStoreTests.swift */,
 				29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */,
 				0041582B292F5363E6379903 /* SessionCryptoTests.swift */,
+				D737CE62F747F7F0ED622749 /* SummarizerTests.swift */,
+				4B43D6AACE6C66BEC2FAA207 /* WebDAVClientTests.swift */,
 			);
 			path = PlaudLocalTests;
 			sourceTree = "<group>";
@@ -84,6 +120,9 @@
 			isa = PBXGroup;
 			children = (
 				5665ADD51103CEF8D5AF11C0 /* Device */,
+				4913CFF69211FA35CE584F4E /* Library */,
+				361614B9F999D3F06A981F69 /* Note */,
+				4902478ADD5B034FD2AB0303 /* Settings */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -95,6 +134,30 @@
 				2C4062443F6D788E4E90C297 /* PlaudLocalTests */,
 				B693E54D6A8CFEE6C29B89EC /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		361614B9F999D3F06A981F69 /* Note */ = {
+			isa = PBXGroup;
+			children = (
+				FC058351B75B49FE1F6BD76C /* NoteDetailView.swift */,
+			);
+			path = Note;
+			sourceTree = "<group>";
+		};
+		4902478ADD5B034FD2AB0303 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B471ABEC328E06AEC20FE673 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		4913CFF69211FA35CE584F4E /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				FA51A15CC8884322EF457C62 /* LibraryView.swift */,
+			);
+			path = Library;
 			sourceTree = "<group>";
 		};
 		5665ADD51103CEF8D5AF11C0 /* Device */ = {
@@ -117,6 +180,20 @@
 				A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */,
 			);
 			path = DeviceSession;
+			sourceTree = "<group>";
+		};
+		6CD378762A2DF15BBCAC8B5E /* NotePipeline */ = {
+			isa = PBXGroup;
+			children = (
+				BF85ACEA87D2B5D4B22C69ED /* Exporter.swift */,
+				D0007114DCF152C74FD76079 /* NoteModels.swift */,
+				D9778E15DF6E96CA8A1C345B /* NotePipeline.swift */,
+				A173362806F97EB898C12D0D /* NoteStore.swift */,
+				141B14950618AC0DCD9BF5BD /* Summarizer.swift */,
+				0D1ADAF86BC71E404D640166 /* Transcriber.swift */,
+				86035177B283822D5BB5279E /* WebDAVClient.swift */,
+			);
+			path = NotePipeline;
 			sourceTree = "<group>";
 		};
 		B693E54D6A8CFEE6C29B89EC /* Products */ = {
@@ -217,12 +294,22 @@
 				98BC73BF565F7EF31BB834FE /* BLEClient.swift in Sources */,
 				CD8194DC0CC399891D5DE4BE /* DeviceSessionModel.swift in Sources */,
 				B68EF78D6495E367F55E6923 /* DeviceView.swift in Sources */,
+				502874D9A4F9F0D8BF72A4A2 /* Exporter.swift in Sources */,
 				A0B37C813BEAAD679CC52050 /* FileDecryptor.swift in Sources */,
 				21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */,
+				68E6150A79526FCAB6A1C26C /* LibraryView.swift in Sources */,
+				5F08124A2049B366052274DB /* NoteDetailView.swift in Sources */,
+				369EF50D3E103D3DC059B7C0 /* NoteModels.swift in Sources */,
+				24413BFAEEEE7443B4BDE50F /* NotePipeline.swift in Sources */,
+				A54245F8433064C21C5C300F /* NoteStore.swift in Sources */,
 				E5A437C9228006AAE9F00ACB /* PlaudAuthService.swift in Sources */,
 				42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */,
 				118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */,
 				997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */,
+				01A42D2BFA1FC9B6F83B9C28 /* SettingsView.swift in Sources */,
+				F8FA575BDBD0A9AAB98E418B /* Summarizer.swift in Sources */,
+				EECBD97D324510E7769C8E55 /* Transcriber.swift in Sources */,
+				B6BB0E17BF27FB9F9FB4625E /* WebDAVClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -231,10 +318,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				DBDC677D92C260D6E9B44E2B /* DeviceSessionModelTests.swift in Sources */,
+				F10EDAAFA1BEE6EA8AE57620 /* ExporterTests.swift in Sources */,
 				5FB91DCE7FA38655F1F1AF2C /* FileDecryptorTests.swift in Sources */,
 				87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */,
+				00B5DD6D4CBB3960BFF770AE /* NotePipelineTests.swift in Sources */,
+				56671537EDBA635FC686C30C /* NoteStoreTests.swift in Sources */,
 				86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */,
 				22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */,
+				01053725DACC05E11BC94414 /* SummarizerTests.swift in Sources */,
+				DDEE3C4CC603E6144DFA4692 /* WebDAVClientTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
