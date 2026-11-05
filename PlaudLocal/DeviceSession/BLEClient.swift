@@ -36,8 +36,14 @@ final class BLEClient: NSObject, BLEClienting {
         if central.state != .poweredOn {
             await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                 readyContinuation = cont
+                // Avoid hanging forever if Bluetooth stays off.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    self?.readyContinuation?.resume()
+                    self?.readyContinuation = nil
+                }
             }
         }
+        guard central.state == .poweredOn else { return }
         central.scanForPeripherals(withServices: [Self.serviceUUID], options: nil)
     }
 
@@ -80,6 +86,11 @@ extension BLEClient: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         connectContinuation?.resume(throwing: error ?? BLEClientError.bluetoothUnavailable)
         connectContinuation = nil
+    }
+
+    func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
+        notifyContinuation?.finish()
+        notifyContinuation = nil
     }
 }
 

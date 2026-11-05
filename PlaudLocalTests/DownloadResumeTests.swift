@@ -1,0 +1,67 @@
+import XCTest
+@testable import PlaudLocal
+
+final class DownloadResumeTests: XCTestCase {
+    @MainActor
+    func test_download_ignores_wrong_offset_and_writes_at_expected() async throws {
+        // session 7, offset 100, 3 bytes payload — but part file already has 100 bytes,
+        // so only payload at offset 100 should append; offset 50 must be ignored.
+        func recPacket(session: UInt32, offset: UInt32, payload: [UInt8]) -> Data {
+            var d = Data([0x02])
+            d.append(contentsOf: withUnsafeBytes(of: session.littleEndian) { Data($0) })
+            d.append(contentsOf: withUnsafeBytes(of: offset.littleEndian) { Data($0) })
+            d.append(UInt8(payload.count))
+            d.append(contentsOf: payload)
+            return d
+        }
+        let end: UInt32 = 0xFFFF_FFFF
+        var endPacket = Data([0x02])
+        endPacket.append(contentsOf: withUnsafeBytes(of: UInt32(7).littleEndian) { Data($0) })
+        endPacket.append(contentsOf: withUnsafeBytes(of: end.littleEndian) { Data($0) })
+        endPacket.append(0) // len
+
+        let ble = MockBLEClient(notifyChunks: [
+            recPacket(session: 7, offset: 50, payload: [0xFF, 0xFF]), // wrong — ignore
+            recPacket(session: 7, offset: 100, payload: [0x01, 0x02, 0x03]),
+            endPacket,
+        ])
+        let model = DeviceSessionModel(
+            ble: ble,
+            keyVault: KeyVault(service: "com.local.plaudlocal.tests.resume"),
+            userId: "u"
+        )
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let part = dir.appendingPathComponent("7.plaud.part")
+        try Data(repeating: 0xAB, count: 100).write(to: part)
+
+        let url = try await model.download(
+            recording: DeviceRecording(sessionId: 7, size: 103),
+            to: dir
+        )
+        let data = try Data(contentsOf: url)
+        XCTAssertEqual(data.count, 103)
+        XCTAssertEqual(Array(data.suffix(3)), [0x01, 0x02, 0x03])
+        XCTAssertFalse(data.contains(where: { $0 == 0xFF }))
+    }
+
+    @MainActor
+    func test_unlock_rejects_protocol30() async throws {
+        let ble = MockBLEClient(notifyChunks: [Data([0xFE, 0x30])])
+        let vault = KeyVault(service: "com.local.plaudlocal.tests.p30")
+        try vault.save(Data("pem".utf8), account: "plaud.rsaPrivatePEM")
+        let model = DeviceSessionModel(
+            ble: ble,
+            keyVault: vault,
+            userId: "u"
+        )
+        do {
+            try await model.unlock()
+            XCTFail("expected abort")
+        } catch SessionCryptoError.unsupportedProtocol30 {
+            // ok
+        } catch {
+            XCTFail("\(error)")
+        }
+    }
+}

@@ -5,6 +5,7 @@ enum FileDecryptorError: Error, Equatable {
     case badMagic
     case unsupportedVersion(UInt16)
     case rsaFailed
+    case needsReSignIn
     case integrityFailed
     case truncated
 }
@@ -28,9 +29,14 @@ enum FileDecryptor {
         let keyCipher = fileData.subdata(in: 256..<512)
         let body = fileData.subdata(in: headerSize..<fileData.count)
 
-        let contentKey = try rsaDecryptPKCS1(cipher: keyCipher, privateKeyPEM: privateKeyPEM)
+        let contentKey: Data
+        do {
+            contentKey = try rsaDecryptPKCS1(cipher: keyCipher, privateKeyPEM: privateKeyPEM)
+        } catch {
+            throw FileDecryptorError.needsReSignIn
+        }
         let key32 = contentKey.count >= 32 ? contentKey.suffix(32) : contentKey
-        guard key32.count == 32 else { throw FileDecryptorError.rsaFailed }
+        guard key32.count == 32 else { throw FileDecryptorError.needsReSignIn }
 
         if segmentSize > 0 {
             var out = Data()
@@ -55,15 +61,21 @@ enum FileDecryptor {
             .replacingOccurrences(of: "-----BEGIN PRIVATE KEY-----", with: "")
             .replacingOccurrences(of: "-----END PRIVATE KEY-----", with: "")
             .replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
-        guard let der = Data(base64Encoded: cleaned) else { throw FileDecryptorError.rsaFailed }
+        guard let der = Data(base64Encoded: cleaned) else { throw FileDecryptorError.needsReSignIn }
 
         let attrs: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
             kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
         ]
         var error: Unmanaged<CFError>?
-        guard let key = SecKeyCreateWithData(der as CFData, attrs as CFDictionary, &error) else {
-            throw FileDecryptorError.rsaFailed
+        let key: SecKey
+        if let direct = SecKeyCreateWithData(der as CFData, attrs as CFDictionary, &error) {
+            key = direct
+        } else if let pkcs1 = extractPKCS1FromPKCS8(der),
+                  let unwrapped = SecKeyCreateWithData(pkcs1 as CFData, attrs as CFDictionary, &error) {
+            key = unwrapped
+        } else {
+            throw FileDecryptorError.needsReSignIn
         }
         guard let plain = SecKeyCreateDecryptedData(
             key,
@@ -71,9 +83,41 @@ enum FileDecryptor {
             cipher as CFData,
             &error
         ) as Data? else {
-            throw FileDecryptorError.rsaFailed
+            throw FileDecryptorError.needsReSignIn
         }
         return plain
+    }
+
+    /// Best-effort: find the RSAPrivateKey OCTET STRING inside a PKCS#8 PrivateKeyInfo blob.
+    private static func extractPKCS1FromPKCS8(_ der: Data) -> Data? {
+        // Look for OCTET STRING tag (0x04) followed by a lengthy RSA key blob (>= 600 bytes typical).
+        guard der.count > 50 else { return nil }
+        var i = 0
+        while i + 4 < der.count {
+            if der[i] == 0x04 {
+                let (len, consumed) = readASN1Length(der, at: i + 1)
+                guard let len, consumed > 0, i + 1 + consumed + len <= der.count, len > 200 else {
+                    i += 1
+                    continue
+                }
+                return der.subdata(in: (i + 1 + consumed)..<(i + 1 + consumed + len))
+            }
+            i += 1
+        }
+        return nil
+    }
+
+    private static func readASN1Length(_ data: Data, at offset: Int) -> (Int?, Int) {
+        guard offset < data.count else { return (nil, 0) }
+        let first = data[offset]
+        if first & 0x80 == 0 { return (Int(first), 1) }
+        let count = Int(first & 0x7f)
+        guard count > 0, count <= 4, offset + count < data.count else { return (nil, 0) }
+        var len = 0
+        for j in 0..<count {
+            len = (len << 8) | Int(data[offset + 1 + j])
+        }
+        return (len, 1 + count)
     }
 
     private static func readUInt16(_ data: Data, at offset: Int) -> UInt16 {

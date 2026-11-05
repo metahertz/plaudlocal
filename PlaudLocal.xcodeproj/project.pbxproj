@@ -14,6 +14,8 @@
 		21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E92FA3ED80038CBD840BC1 /* KeyVault.swift */; };
 		22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0041582B292F5363E6379903 /* SessionCryptoTests.swift */; };
 		24413BFAEEEE7443B4BDE50F /* NotePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9778E15DF6E96CA8A1C345B /* NotePipeline.swift */; };
+		2EEF88E6F163823ABCFB3C8D /* DownloadResumeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE8D6A6028570D1CAC28DD5B /* DownloadResumeTests.swift */; };
+		33CB636C2CC201BFBE2E12DE /* NotePipelineExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7CB45D6E11CEE644DBFEFD0 /* NotePipelineExportTests.swift */; };
 		369EF50D3E103D3DC059B7C0 /* NoteModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0007114DCF152C74FD76079 /* NoteModels.swift */; };
 		42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */; };
 		502874D9A4F9F0D8BF72A4A2 /* Exporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF85ACEA87D2B5D4B22C69ED /* Exporter.swift */; };
@@ -80,6 +82,8 @@
 		D0007114DCF152C74FD76079 /* NoteModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteModels.swift; sourceTree = "<group>"; };
 		D737CE62F747F7F0ED622749 /* SummarizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummarizerTests.swift; sourceTree = "<group>"; };
 		D9778E15DF6E96CA8A1C345B /* NotePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePipeline.swift; sourceTree = "<group>"; };
+		DE8D6A6028570D1CAC28DD5B /* DownloadResumeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadResumeTests.swift; sourceTree = "<group>"; };
+		E7CB45D6E11CEE644DBFEFD0 /* NotePipelineExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePipelineExportTests.swift; sourceTree = "<group>"; };
 		FA51A15CC8884322EF457C62 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		FBB0D11695DE3C3D74642959 /* DeviceSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionModel.swift; sourceTree = "<group>"; };
 		FC058351B75B49FE1F6BD76C /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
@@ -103,9 +107,11 @@
 			isa = PBXGroup;
 			children = (
 				461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */,
+				DE8D6A6028570D1CAC28DD5B /* DownloadResumeTests.swift */,
 				61D11ACD4F90A37D96C3FFE8 /* ExporterTests.swift */,
 				564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */,
 				B740F5AFE909ABC292736738 /* KeyVaultTests.swift */,
+				E7CB45D6E11CEE644DBFEFD0 /* NotePipelineExportTests.swift */,
 				0DF1AD235592205C748FF690 /* NotePipelineTests.swift */,
 				BDBCA944C70E70000CC8B16A /* NoteStoreTests.swift */,
 				29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */,
@@ -318,9 +324,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				DBDC677D92C260D6E9B44E2B /* DeviceSessionModelTests.swift in Sources */,
+				2EEF88E6F163823ABCFB3C8D /* DownloadResumeTests.swift in Sources */,
 				F10EDAAFA1BEE6EA8AE57620 /* ExporterTests.swift in Sources */,
 				5FB91DCE7FA38655F1F1AF2C /* FileDecryptorTests.swift in Sources */,
 				87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */,
+				33CB636C2CC201BFBE2E12DE /* NotePipelineExportTests.swift in Sources */,
 				00B5DD6D4CBB3960BFF770AE /* NotePipelineTests.swift in Sources */,
 				56671537EDBA635FC686C30C /* NoteStoreTests.swift in Sources */,
 				86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */,

@@ -35,7 +35,10 @@ struct WebDAVClient {
 
     private func urlFor(_ path: String) throws -> URL {
         let trimmed = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let url = URL(string: trimmed, relativeTo: baseURL)?.absoluteURL else {
+        var base = baseURL.absoluteString
+        if !base.hasSuffix("/") { base += "/" }
+        guard let rooted = URL(string: base),
+              let url = URL(string: trimmed, relativeTo: rooted)?.absoluteURL else {
             throw WebDAVError.badURL
         }
         return url

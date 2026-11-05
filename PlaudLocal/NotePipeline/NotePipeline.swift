@@ -14,9 +14,15 @@ struct NotePipeline {
     func processDownloadedFile(_ url: URL, sessionId: UInt32, duration: Int) async throws -> NoteMetadata {
         let encrypted = try Data(contentsOf: url)
         guard let pem = privateKeyPEMProvider() else {
-            throw FileDecryptorError.rsaFailed
+            throw FileDecryptorError.needsReSignIn
         }
-        let audio = try decrypt(encrypted, pem)
+        let audio: Data
+        do {
+            audio = try decrypt(encrypted, pem)
+        } catch FileDecryptorError.needsReSignIn, FileDecryptorError.rsaFailed {
+            throw FileDecryptorError.needsReSignIn
+        }
+
         var meta = try store.createNote(fromDecryptedAudio: audio, sessionId: sessionId, duration: duration)
 
         meta.transcriptStatus = .running
@@ -41,8 +47,12 @@ struct NotePipeline {
         if exporter.settings.autoExportEnabled {
             meta.exportStatus = .running
             try store.updateMetadata(meta)
-            _ = try await exporter.export(meta, store: store)
-            meta.exportStatus = .done
+            do {
+                let result = try await exporter.export(meta, store: store)
+                meta.exportStatus = (result.wroteLocal || result.wroteRemote) ? .done : .skipped
+            } catch {
+                meta.exportStatus = .failed
+            }
             try store.updateMetadata(meta)
         }
 

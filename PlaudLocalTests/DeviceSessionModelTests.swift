@@ -11,7 +11,10 @@ final class DeviceSessionModelTests: XCTestCase {
             userId: "testid"
         )
         do {
-            try await model.unlockForTests()
+            // Seed a dummy key so unlock reaches the protocol check.
+            let vault = KeyVault(service: "com.local.plaudlocal.tests.device")
+            try? vault.save(Data("pem".utf8), account: "plaud.rsaPrivatePEM")
+            try await model.unlock()
             XCTFail("expected protocol 30 abort")
         } catch SessionCryptoError.unsupportedProtocol30 {
             // expected
