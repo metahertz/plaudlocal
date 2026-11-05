@@ -108,7 +108,7 @@ func test_roundTripSecret() throws {
 
 - [ ] **Step 4: Run tests**
 
-Run: `xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:PlaudLocalTests/KeyVaultTests`
+Run: `xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:PlaudLocalTests/KeyVaultTests`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -301,7 +301,7 @@ git commit -m "chore: scaffold Plaud Local iOS app and KeyVault"
 
 - [ ] **Step 3: Run full unit test suite**
 
-Run: `xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPhone 16'`
+Run: `xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPhone 17'`
 Expected: all PASS
 
 - [ ] **Step 4: Commit** `feat: wire download-to-export note pipeline`

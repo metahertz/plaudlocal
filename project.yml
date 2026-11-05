@@ -1,0 +1,51 @@
+name: PlaudLocal
+options:
+  bundleIdPrefix: com.local
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+settings:
+  SWIFT_VERSION: "5.9"
+  CURRENT_PROJECT_VERSION: 1
+  MARKETING_VERSION: "0.1.0"
+targets:
+  PlaudLocal:
+    type: application
+    platform: iOS
+    sources:
+      - path: PlaudLocal
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.local.plaudlocal
+      INFOPLIST_FILE: PlaudLocal/Info.plist
+      GENERATE_INFOPLIST_FILE: false
+      TARGETED_DEVICE_FAMILY: "1,2"
+    info:
+      path: PlaudLocal/Info.plist
+      properties:
+        CFBundleDisplayName: Plaud Local
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSBluetoothAlwaysUsageDescription: Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.
+        NSBluetoothPeripheralUsageDescription: Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.
+  PlaudLocalTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: PlaudLocalTests
+    dependencies:
+      - target: PlaudLocal
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.local.plaudlocal.tests
+      GENERATE_INFOPLIST_FILE: true
+schemes:
+  PlaudLocal:
+    build:
+      targets:
+        PlaudLocal: all
+        PlaudLocalTests: [test]
+    test:
+      targets:
+        - PlaudLocalTests
+      gatherCoverageData: false

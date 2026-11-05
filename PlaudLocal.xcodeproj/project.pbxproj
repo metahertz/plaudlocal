@@ -1,0 +1,416 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E92FA3ED80038CBD840BC1 /* KeyVault.swift */; };
+		42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */; };
+		87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B740F5AFE909ABC292736738 /* KeyVaultTests.swift */; };
+		938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 788122B7CBD9855AC6C57AE1 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		293B31A529D575BFADA11DA4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 49B554E2D4EC2B8333B650F9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AF854AC5E257D4E47707243D;
+			remoteInfo = PlaudLocal;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLocalApp.swift; sourceTree = "<group>"; };
+		3A25521F7B309F2454410A3C /* PlaudLocal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PlaudLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		788122B7CBD9855AC6C57AE1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7DE381D776BEB69ACFDCEEBF /* PlaudLocalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PlaudLocalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8270AEF1AEA5926CF99317C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		92E92FA3ED80038CBD840BC1 /* KeyVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVault.swift; sourceTree = "<group>"; };
+		B740F5AFE909ABC292736738 /* KeyVaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVaultTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2A414F2EA74C81121B689C23 /* PlaudLocal */ = {
+			isa = PBXGroup;
+			children = (
+				788122B7CBD9855AC6C57AE1 /* Assets.xcassets */,
+				8270AEF1AEA5926CF99317C9 /* Info.plist */,
+				2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */,
+				5DDBA09C90511E7E952DA246 /* DeviceSession */,
+			);
+			path = PlaudLocal;
+			sourceTree = "<group>";
+		};
+		2C4062443F6D788E4E90C297 /* PlaudLocalTests */ = {
+			isa = PBXGroup;
+			children = (
+				B740F5AFE909ABC292736738 /* KeyVaultTests.swift */,
+			);
+			path = PlaudLocalTests;
+			sourceTree = "<group>";
+		};
+		345CB893B4549BCDF78836E5 = {
+			isa = PBXGroup;
+			children = (
+				2A414F2EA74C81121B689C23 /* PlaudLocal */,
+				2C4062443F6D788E4E90C297 /* PlaudLocalTests */,
+				B693E54D6A8CFEE6C29B89EC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5DDBA09C90511E7E952DA246 /* DeviceSession */ = {
+			isa = PBXGroup;
+			children = (
+				92E92FA3ED80038CBD840BC1 /* KeyVault.swift */,
+			);
+			path = DeviceSession;
+			sourceTree = "<group>";
+		};
+		B693E54D6A8CFEE6C29B89EC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3A25521F7B309F2454410A3C /* PlaudLocal.app */,
+				7DE381D776BEB69ACFDCEEBF /* PlaudLocalTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AF854AC5E257D4E47707243D /* PlaudLocal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 12E153ACAB87E373AED7CFBA /* Build configuration list for PBXNativeTarget "PlaudLocal" */;
+			buildPhases = (
+				53C962035E52BA1A778375A9 /* Sources */,
+				3033D302A39CA74F54062244 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PlaudLocal;
+			packageProductDependencies = (
+			);
+			productName = PlaudLocal;
+			productReference = 3A25521F7B309F2454410A3C /* PlaudLocal.app */;
+			productType = "com.apple.product-type.application";
+		};
+		FA4AB90DF64CCAA462FED556 /* PlaudLocalTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0485F7B156993F272F10543C /* Build configuration list for PBXNativeTarget "PlaudLocalTests" */;
+			buildPhases = (
+				F9F95C6EF9282B1DF3FCD0AB /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A9A39BF400D27C0EB5C3CB0A /* PBXTargetDependency */,
+			);
+			name = PlaudLocalTests;
+			packageProductDependencies = (
+			);
+			productName = PlaudLocalTests;
+			productReference = 7DE381D776BEB69ACFDCEEBF /* PlaudLocalTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		49B554E2D4EC2B8333B650F9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 3BC47ACB8D668E1E826E0978 /* Build configuration list for PBXProject "PlaudLocal" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 345CB893B4549BCDF78836E5;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B693E54D6A8CFEE6C29B89EC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AF854AC5E257D4E47707243D /* PlaudLocal */,
+				FA4AB90DF64CCAA462FED556 /* PlaudLocalTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		3033D302A39CA74F54062244 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		53C962035E52BA1A778375A9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */,
+				42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F9F95C6EF9282B1DF3FCD0AB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A9A39BF400D27C0EB5C3CB0A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AF854AC5E257D4E47707243D /* PlaudLocal */;
+			targetProxy = 293B31A529D575BFADA11DA4 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1C23EFF4F83D39B22C5C3C56 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PlaudLocal/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.plaudlocal;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		1FD36A67661D2B8EDE39EFB7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.plaudlocal.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PlaudLocal.app/PlaudLocal";
+			};
+			name = Release;
+		};
+		384C899C75A110AFC0A8B266 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.plaudlocal.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PlaudLocal.app/PlaudLocal";
+			};
+			name = Debug;
+		};
+		45C99ADD74F750F72397D75F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PlaudLocal/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.plaudlocal;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		65CC4AEAEE83FD65E0343D30 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		7E435AE39DA6F54036E0ED4C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0485F7B156993F272F10543C /* Build configuration list for PBXNativeTarget "PlaudLocalTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				384C899C75A110AFC0A8B266 /* Debug */,
+				1FD36A67661D2B8EDE39EFB7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		12E153ACAB87E373AED7CFBA /* Build configuration list for PBXNativeTarget "PlaudLocal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				45C99ADD74F750F72397D75F /* Debug */,
+				1C23EFF4F83D39B22C5C3C56 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3BC47ACB8D668E1E826E0978 /* Build configuration list for PBXProject "PlaudLocal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				65CC4AEAEE83FD65E0343D30 /* Debug */,
+				7E435AE39DA6F54036E0ED4C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 49B554E2D4EC2B8333B650F9 /* Project object */;
+}
