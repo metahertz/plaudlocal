@@ -11,10 +11,12 @@
 		21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E92FA3ED80038CBD840BC1 /* KeyVault.swift */; };
 		22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0041582B292F5363E6379903 /* SessionCryptoTests.swift */; };
 		42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */; };
+		5FB91DCE7FA38655F1F1AF2C /* FileDecryptorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */; };
 		86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */; };
 		87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B740F5AFE909ABC292736738 /* KeyVaultTests.swift */; };
 		938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 788122B7CBD9855AC6C57AE1 /* Assets.xcassets */; };
 		997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */; };
+		A0B37C813BEAAD679CC52050 /* FileDecryptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DAB78505E9AD303B1D308A8 /* FileDecryptor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +34,8 @@
 		29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodecTests.swift; sourceTree = "<group>"; };
 		2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLocalApp.swift; sourceTree = "<group>"; };
 		3A25521F7B309F2454410A3C /* PlaudLocal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PlaudLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDecryptorTests.swift; sourceTree = "<group>"; };
+		6DAB78505E9AD303B1D308A8 /* FileDecryptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDecryptor.swift; sourceTree = "<group>"; };
 		788122B7CBD9855AC6C57AE1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7DE381D776BEB69ACFDCEEBF /* PlaudLocalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PlaudLocalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8270AEF1AEA5926CF99317C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -56,6 +60,7 @@
 		2C4062443F6D788E4E90C297 /* PlaudLocalTests */ = {
 			isa = PBXGroup;
 			children = (
+				564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */,
 				B740F5AFE909ABC292736738 /* KeyVaultTests.swift */,
 				29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */,
 				0041582B292F5363E6379903 /* SessionCryptoTests.swift */,
@@ -75,6 +80,7 @@
 		5DDBA09C90511E7E952DA246 /* DeviceSession */ = {
 			isa = PBXGroup;
 			children = (
+				6DAB78505E9AD303B1D308A8 /* FileDecryptor.swift */,
 				92E92FA3ED80038CBD840BC1 /* KeyVault.swift */,
 				ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */,
 				A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */,
@@ -177,6 +183,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0B37C813BEAAD679CC52050 /* FileDecryptor.swift in Sources */,
 				21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */,
 				42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */,
 				118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */,
@@ -188,6 +195,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5FB91DCE7FA38655F1F1AF2C /* FileDecryptorTests.swift in Sources */,
 				87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */,
 				86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */,
 				22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */,
