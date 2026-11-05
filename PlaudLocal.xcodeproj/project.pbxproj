@@ -10,6 +10,7 @@
 		00B5DD6D4CBB3960BFF770AE /* NotePipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF1AD235592205C748FF690 /* NotePipelineTests.swift */; };
 		01053725DACC05E11BC94414 /* SummarizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D737CE62F747F7F0ED622749 /* SummarizerTests.swift */; };
 		01A42D2BFA1FC9B6F83B9C28 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B471ABEC328E06AEC20FE673 /* SettingsView.swift */; };
+		0733E75B95814B8D84C12F68 /* PlaudLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B18E31443600A6D7A355F8 /* PlaudLoginView.swift */; };
 		118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */; };
 		21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E92FA3ED80038CBD840BC1 /* KeyVault.swift */; };
 		22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0041582B292F5363E6379903 /* SessionCryptoTests.swift */; };
@@ -58,6 +59,7 @@
 		141B14950618AC0DCD9BF5BD /* Summarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Summarizer.swift; sourceTree = "<group>"; };
 		29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodecTests.swift; sourceTree = "<group>"; };
 		2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLocalApp.swift; sourceTree = "<group>"; };
+		30B18E31443600A6D7A355F8 /* PlaudLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLoginView.swift; sourceTree = "<group>"; };
 		3A25521F7B309F2454410A3C /* PlaudLocal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PlaudLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4002409F35D5285E4F060121 /* BLEClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEClient.swift; sourceTree = "<group>"; };
 		461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionModelTests.swift; sourceTree = "<group>"; };
@@ -153,6 +155,7 @@
 		4902478ADD5B034FD2AB0303 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				30B18E31443600A6D7A355F8 /* PlaudLoginView.swift */,
 				B471ABEC328E06AEC20FE673 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -259,6 +262,14 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					AF854AC5E257D4E47707243D = {
+						DevelopmentTeam = 3C5PM5Q74H;
+						ProvisioningStyle = Automatic;
+					};
+					FA4AB90DF64CCAA462FED556 = {
+						DevelopmentTeam = 3C5PM5Q74H;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = 3BC47ACB8D668E1E826E0978 /* Build configuration list for PBXProject "PlaudLocal" */;
@@ -310,6 +321,7 @@
 				A54245F8433064C21C5C300F /* NoteStore.swift in Sources */,
 				E5A437C9228006AAE9F00ACB /* PlaudAuthService.swift in Sources */,
 				42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */,
+				0733E75B95814B8D84C12F68 /* PlaudLoginView.swift in Sources */,
 				118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */,
 				997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */,
 				01A42D2BFA1FC9B6F83B9C28 /* SettingsView.swift in Sources */,
@@ -354,6 +366,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3C5PM5Q74H;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PlaudLocal/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -405,6 +419,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 3C5PM5Q74H;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = PlaudLocal/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -450,9 +466,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 3C5PM5Q74H;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -515,9 +533,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 3C5PM5Q74H;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

@@ -7,6 +7,8 @@ options:
   createIntermediateGroups: true
 settings:
   SWIFT_VERSION: "5.9"
+  DEVELOPMENT_TEAM: 3C5PM5Q74H
+  CODE_SIGN_STYLE: Automatic
   CURRENT_PROJECT_VERSION: 1
   MARKETING_VERSION: "0.1.0"
 targets:
@@ -17,6 +19,8 @@ targets:
       - path: PlaudLocal
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.local.plaudlocal
+      DEVELOPMENT_TEAM: 3C5PM5Q74H
+      CODE_SIGN_STYLE: Automatic
       INFOPLIST_FILE: PlaudLocal/Info.plist
       GENERATE_INFOPLIST_FILE: false
       TARGETED_DEVICE_FAMILY: "1,2"

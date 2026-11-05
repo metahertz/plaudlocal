@@ -8,6 +8,7 @@ struct DeviceView: View {
     )
     @State private var downloadDirectory = FileManager.default.temporaryDirectory
     @State private var lastError: String?
+    @State private var isScanning = false
 
     var body: some View {
         NavigationStack {
@@ -18,9 +19,38 @@ struct DeviceView: View {
                         Text(message).foregroundStyle(.red)
                     }
                     if !model.statusMessage.isEmpty {
-                        Text(model.statusMessage).font(.footnote).foregroundStyle(.secondary)
+                        Text(model.statusMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
+
+                Section("Nearby") {
+                    if model.discovered.isEmpty {
+                        Text("No Plaud devices yet")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.discovered) { device in
+                            Button {
+                                Task { await model.connect(to: device.id) }
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text(device.name)
+                                        Text(device.id.uuidString)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Text("\(device.rssi) dBm")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Section("On device") {
                     if model.deviceRecordings.isEmpty {
                         Text("No recordings listed yet")
@@ -44,9 +74,14 @@ struct DeviceView: View {
             .navigationTitle("Device")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Scan") {
-                        Task { await model.bleScan() }
+                    Button(isScanning ? "Scanning…" : "Scan") {
+                        Task {
+                            isScanning = true
+                            await model.bleScan()
+                            isScanning = false
+                        }
                     }
+                    .disabled(isScanning)
                 }
             }
             .alert("Error", isPresented: Binding(
@@ -63,6 +98,7 @@ struct DeviceView: View {
     private var stateLabel: String {
         switch model.connectionState {
         case .disconnected: return "Disconnected"
+        case .scanning: return "Scanning…"
         case .connecting: return "Connecting…"
         case .connected: return "Connected"
         case .unlocking: return "Unlocking…"
@@ -84,7 +120,7 @@ struct DeviceView: View {
             )
             _ = try await pipeline.processDownloadedFile(url, sessionId: rec.sessionId, duration: 0)
         } catch FileDecryptorError.needsReSignIn {
-            lastError = "Missing or invalid keys — sign in again in Settings to re-fetch keys."
+            lastError = "Missing or invalid keys — sign in again in Settings."
         } catch {
             lastError = error.localizedDescription
         }

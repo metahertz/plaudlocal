@@ -48,7 +48,12 @@ final class MockBLEClient: BLEClienting {
         self.notifyChunks = notifyChunks
     }
 
-    func scan() async {}
+    var discovered: AsyncStream<DiscoveredPeripheral> {
+        AsyncStream { $0.finish() }
+    }
+
+    func scan(duration: TimeInterval) async {}
+    func stopScan() {}
     func connect(peripheralID: UUID) async throws {}
     func write(_ data: Data) async throws { writes.append(data) }
     func notifications() -> AsyncStream<Data> {

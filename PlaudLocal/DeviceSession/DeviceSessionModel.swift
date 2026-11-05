@@ -8,6 +8,7 @@ struct DeviceRecording: Identifiable, Equatable {
 
 enum ConnectionState: Equatable {
     case disconnected
+    case scanning
     case connecting
     case connected
     case unlocking
@@ -26,11 +27,12 @@ final class DeviceSessionModel: ObservableObject {
     @Published var connectionState: ConnectionState = .disconnected
     @Published var deviceRecordings: [DeviceRecording] = []
     @Published var statusMessage: String = ""
-    @Published var discoveredPeripheralIDs: [UUID] = []
+    @Published var discovered: [DiscoveredPeripheral] = []
 
     private let ble: any BLEClienting
     private let keyVault: KeyVault
     private let userId: String
+    private var discoverTask: Task<Void, Never>?
 
     init(ble: any BLEClienting, keyVault: KeyVault, userId: String) {
         self.ble = ble
@@ -44,12 +46,11 @@ final class DeviceSessionModel: ObservableObject {
         return size?.uint32Value ?? 0
     }
 
-    /// Protocol-20 unlock gate: abort immediately on protocol-30 start packet.
     func unlock() async throws {
         connectionState = .unlocking
         guard keyVault.load(account: "plaud.rsaPrivatePEM") != nil else {
-            connectionState = .failed("Missing E2EE key — sign in again to re-fetch keys")
-            throw DeviceSessionError.needsReSignIn("Missing E2EE key — sign in again to re-fetch keys")
+            connectionState = .failed("Missing E2EE key — sign in under Settings first")
+            throw DeviceSessionError.needsReSignIn("Missing E2EE key — sign in under Settings first")
         }
 
         for await packet in ble.notifications() {
@@ -57,13 +58,11 @@ final class DeviceSessionModel: ObservableObject {
                 connectionState = .failed("Unsupported firmware (protocol 30)")
                 throw SessionCryptoError.unsupportedProtocol30
             }
-            // First non-P30 packet: treat unlock handshake as started/ok for v1 gate.
             break
         }
         connectionState = .ready
     }
 
-    /// Back-compat test name.
     func unlockForTests() async throws { try await unlock() }
 
     func download(recording: DeviceRecording, to directory: URL) async throws -> URL {
@@ -89,9 +88,7 @@ final class DeviceSessionModel: ObservableObject {
         for await raw in ble.notifications() {
             switch ProtocolCodec.parseNotify(raw) {
             case let .recordingData(sessionId, offset, payload):
-                if let sessionId, sessionId != recording.sessionId {
-                    continue
-                }
+                if let sessionId, sessionId != recording.sessionId { continue }
                 if offset == 0xFFFF_FFFF {
                     sawEnd = true
                     try handle.close()
@@ -101,7 +98,6 @@ final class DeviceSessionModel: ObservableObject {
                     try FileManager.default.moveItem(at: partURL, to: finalURL)
                     return finalURL
                 }
-                // Only accept the next contiguous chunk; ignore stale/wrong offsets.
                 guard offset == expectedOffset else { continue }
                 try handle.write(contentsOf: payload)
                 expectedOffset &+= UInt32(payload.count)
@@ -117,21 +113,43 @@ final class DeviceSessionModel: ObservableObject {
     }
 
     func bleScan() async {
-        connectionState = .connecting
-        statusMessage = "Scanning for Plaud Note Pro…"
-        await ble.scan()
-        // Scan alone does not imply connection; leave ready for user to connect.
+        discovered = []
+        connectionState = .scanning
+        statusMessage = "Scanning… Wake the Note Pro (press its button) and force-quit the official Plaud app so it releases Bluetooth."
+
+        discoverTask?.cancel()
+        discoverTask = Task { [weak self] in
+            guard let self else { return }
+            for await item in ble.discovered {
+                if Task.isCancelled { break }
+                if !discovered.contains(where: { $0.id == item.id }) {
+                    discovered.append(item)
+                }
+            }
+        }
+
+        await ble.scan(duration: 12)
+        discoverTask?.cancel()
         connectionState = .disconnected
+        if discovered.isEmpty {
+            statusMessage = "Nothing found. Quit Plaud’s app, press the recorder’s button to wake it, keep it near the phone, then Scan again."
+        } else {
+            statusMessage = "Found \(discovered.count) device(s). Tap one to connect."
+        }
     }
 
     func connect(to id: UUID) async {
         connectionState = .connecting
+        statusMessage = "Connecting…"
         do {
             try await ble.connect(peripheralID: id)
             connectionState = .connected
+            statusMessage = "Connected — unlocking…"
             try await unlock()
+            statusMessage = "Ready"
         } catch {
             connectionState = .failed(error.localizedDescription)
+            statusMessage = error.localizedDescription
         }
     }
 }
