@@ -26,6 +26,7 @@
 		68E6150A79526FCAB6A1C26C /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA51A15CC8884322EF457C62 /* LibraryView.swift */; };
 		86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */; };
 		87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B740F5AFE909ABC292736738 /* KeyVaultTests.swift */; };
+		8D0B4F5423C2CB94F5A17AA5 /* PlaudAuthRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BC0039F04E98EA354D34E0 /* PlaudAuthRoutingTests.swift */; };
 		938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 788122B7CBD9855AC6C57AE1 /* Assets.xcassets */; };
 		98BC73BF565F7EF31BB834FE /* BLEClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4002409F35D5285E4F060121 /* BLEClient.swift */; };
 		997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */; };
@@ -75,6 +76,7 @@
 		92E92FA3ED80038CBD840BC1 /* KeyVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVault.swift; sourceTree = "<group>"; };
 		A173362806F97EB898C12D0D /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
 		A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCrypto.swift; sourceTree = "<group>"; };
+		A2BC0039F04E98EA354D34E0 /* PlaudAuthRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudAuthRoutingTests.swift; sourceTree = "<group>"; };
 		ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodec.swift; sourceTree = "<group>"; };
 		B471ABEC328E06AEC20FE673 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		B740F5AFE909ABC292736738 /* KeyVaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVaultTests.swift; sourceTree = "<group>"; };
@@ -116,6 +118,7 @@
 				E7CB45D6E11CEE644DBFEFD0 /* NotePipelineExportTests.swift */,
 				0DF1AD235592205C748FF690 /* NotePipelineTests.swift */,
 				BDBCA944C70E70000CC8B16A /* NoteStoreTests.swift */,
+				A2BC0039F04E98EA354D34E0 /* PlaudAuthRoutingTests.swift */,
 				29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */,
 				0041582B292F5363E6379903 /* SessionCryptoTests.swift */,
 				D737CE62F747F7F0ED622749 /* SummarizerTests.swift */,
@@ -343,6 +346,7 @@
 				33CB636C2CC201BFBE2E12DE /* NotePipelineExportTests.swift in Sources */,
 				00B5DD6D4CBB3960BFF770AE /* NotePipelineTests.swift in Sources */,
 				56671537EDBA635FC686C30C /* NoteStoreTests.swift in Sources */,
+				8D0B4F5423C2CB94F5A17AA5 /* PlaudAuthRoutingTests.swift in Sources */,
 				86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */,
 				22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */,
 				01053725DACC05E11BC94414 /* SummarizerTests.swift in Sources */,
