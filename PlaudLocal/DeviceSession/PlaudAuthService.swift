@@ -33,41 +33,51 @@ final class PlaudAuthService: NSObject, ObservableObject {
     /// Fernet key embedded in the Plaud Android/web client (public reverse-engineering).
     private static let fernetKeyB64 = "8rRmMCskL3NaUiGr-UsmEEeI8NKH-ZfeGbpRGqSLpuI="
 
-    /// Known regional hosts (api.plaud.ai is retired as a working endpoint).
-    private static let regionalHosts = [
-        "https://api-use1.plaud.ai",
-        "https://api-use2.plaud.ai",
-        "https://api-usw1.plaud.ai",
+    /// Hosts that currently resolve in DNS and answer HTTPS.
+    /// Several names in older docs (`api-aps1`, `api-use1`, …) do not resolve.
+    private static let discoveryHost = "https://api.plaud.ai"
+    private static let liveRegionalHosts = [
         "https://api-usw2.plaud.ai",
         "https://api-euc1.plaud.ai",
-        "https://api-euw1.plaud.ai",
         "https://api-apse1.plaud.ai",
-        "https://api-apse2.plaud.ai",
         "https://api-apne1.plaud.ai",
-        "https://api-aps1.plaud.ai",
     ]
 
+    /// Prefer live hosts. Unmapped / dead doc names fall through to discovery.
     private static let regionToHost: [String: String] = [
-        "aws:us-east-1": "https://api-use1.plaud.ai",
-        "aws:us-east-2": "https://api-use2.plaud.ai",
-        "aws:us-west-1": "https://api-usw1.plaud.ai",
         "aws:us-west-2": "https://api-usw2.plaud.ai",
         "aws:eu-central-1": "https://api-euc1.plaud.ai",
-        "aws:eu-west-1": "https://api-euw1.plaud.ai",
         "aws:ap-southeast-1": "https://api-apse1.plaud.ai",
-        "aws:ap-southeast-2": "https://api-apse2.plaud.ai",
         "aws:ap-northeast-1": "https://api-apne1.plaud.ai",
-        "aws:ap-south-1": "https://api-aps1.plaud.ai",
+        // Documented but DNS-dead — force discovery instead of calling a missing host.
+        "aws:us-east-1": discoveryHost,
+        "aws:us-east-2": discoveryHost,
+        "aws:us-west-1": discoveryHost,
+        "aws:eu-west-1": discoveryHost,
+        "aws:ap-southeast-2": discoveryHost,
+        "aws:ap-south-1": discoveryHost,
     ]
+
+    private static let deadHostFragments = ["aps1", "use1", "use2", "usw1", "euw1", "apse2"]
 
     init(keyVault: KeyVault = KeyVault()) {
         self.keyVault = keyVault
         isSignedIn = keyVault.load(account: "plaud.userToken") != nil
         hasE2EEKey = keyVault.load(account: "plaud.rsaPrivatePEM") != nil
         if let data = keyVault.load(account: "plaud.apiHost"),
-           let host = String(data: data, encoding: .utf8) {
+           let host = String(data: data, encoding: .utf8),
+           !Self.isDeadHost(host) {
             resolvedAPIHost = host
+        } else {
+            // Drop stale cache pointing at DNS-dead hosts (e.g. api-aps1).
+            try? keyVault.delete(account: "plaud.apiHost")
+            resolvedAPIHost = nil
         }
+    }
+
+    private static func isDeadHost(_ host: String) -> Bool {
+        let h = host.lowercased()
+        return deadHostFragments.contains { h.contains("api-\($0).plaud.ai") || h.contains("api-\($0)") }
     }
 
     func signOut() throws {
@@ -107,10 +117,14 @@ final class PlaudAuthService: NSObject, ObservableObject {
             )
         }
         try storeTokens(userToken: ut, refreshToken: urt)
+        // Don't reuse a previously cached dead host from an earlier failed attempt.
+        resolvedAPIHost = nil
+        try? keyVault.delete(account: "plaud.apiHost")
         statusMessage = "Fetching encryption keys…"
         try await fetchAndStoreE2EEKeys(userToken: ut)
         hasE2EEKey = true
-        statusMessage = "Keys saved on this iPhone"
+        let hostNote = resolvedAPIHost.map { " via \($0)" } ?? ""
+        statusMessage = "Keys saved on this iPhone\(hostNote)"
     }
 
     func fetchAndStoreE2EEKeys(userToken: String) async throws {
@@ -148,24 +162,33 @@ final class PlaudAuthService: NSObject, ObservableObject {
 
     private func candidateHosts(for userToken: String) -> [String] {
         var hosts: [String] = []
-        if let resolvedAPIHost { hosts.append(resolvedAPIHost) }
+        // 1) Discovery host first — returns -302 + correct regional domain.
+        hosts.append(Self.discoveryHost)
+        // 2) Cached live host from a previous success.
+        if let resolvedAPIHost, !Self.isDeadHost(resolvedAPIHost) {
+            hosts.append(resolvedAPIHost)
+        }
+        // 3) JWT region hint (only if it maps to a live host / discovery).
         if let region = jwtClaim(userToken, key: "region"),
            let mapped = Self.regionToHost[region] {
             hosts.append(mapped)
         }
-        hosts.append(contentsOf: Self.regionalHosts)
-        // Unique, preserve order
+        // 4) Remaining live regionals.
+        hosts.append(contentsOf: Self.liveRegionalHosts)
         var seen = Set<String>()
-        return hosts.filter { seen.insert($0).inserted }
+        return hosts
+            .filter { !Self.isDeadHost($0) }
+            .filter { seen.insert($0).inserted }
     }
 
     private func rememberHost(_ host: String) {
+        guard !Self.isDeadHost(host) else { return }
         resolvedAPIHost = host
         try? keyVault.save(Data(host.utf8), account: "plaud.apiHost")
     }
 
     private func apiPOST(path: String, body: Data, userToken: String) async throws -> [String: Any] {
-        var lastError: Error = PlaudAuthError.network("No Plaud API host responded")
+        var errors: [String] = []
         let hosts = candidateHosts(for: userToken)
 
         for host in hosts {
@@ -178,35 +201,49 @@ final class PlaudAuthService: NSObject, ObservableObject {
 
                 // Plaud often returns HTTP 200 with status:-302 for region mismatch.
                 if let status = json["status"] as? Int, status == -302 || status == 302 {
-                    if let redirected = redirectHost(from: json) {
+                    if let redirected = redirectHost(from: json), !Self.isDeadHost(redirected) {
                         rememberHost(redirected)
-                        return try await postJSON(
+                        let retried = try await postJSON(
                             url: URL(string: redirected + path)!,
                             body: body,
                             userToken: userToken
                         )
+                        if let s = retried["status"] as? Int, s == -302 || s == 302 {
+                            errors.append("\(redirected): \(retried["msg"] as? String ?? "region mismatch")")
+                            continue
+                        }
+                        rememberHost(redirected)
+                        return retried
                     }
-                    lastError = PlaudAuthError.network(json["msg"] as? String ?? "user region mismatch")
+                    errors.append("\(host): \(json["msg"] as? String ?? "user region mismatch")")
+                    continue
+                }
+
+                // Treat non-zero Plaud status as failure (except ok/success variants).
+                if let status = json["status"] as? Int, status != 0, status != 200 {
+                    errors.append("\(host): status \(status) \(json["msg"] as? String ?? "")")
                     continue
                 }
 
                 rememberHost(host)
                 return json
             } catch let err as PlaudAuthError {
-                lastError = err
+                errors.append("\(host): \(err.localizedDescription)")
                 continue
             } catch {
-                // Skip DNS failures for wrong hosts; surface a clearer message later.
                 let ns = error as NSError
                 if ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCannotFindHost {
-                    lastError = PlaudAuthError.network("Could not reach \(host)")
+                    errors.append("\(host): DNS miss (skipped)")
                     continue
                 }
-                lastError = PlaudAuthError.network(error.localizedDescription)
+                errors.append("\(host): \(error.localizedDescription)")
                 continue
             }
         }
-        throw lastError
+        let detail = errors.suffix(4).joined(separator: " | ")
+        throw PlaudAuthError.network(
+            "Could not reach a working Plaud API host. \(detail)"
+        )
     }
 
     private func redirectHost(from json: [String: Any]) -> String? {
