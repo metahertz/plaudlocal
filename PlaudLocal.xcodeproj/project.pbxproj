@@ -7,10 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */; };
 		21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E92FA3ED80038CBD840BC1 /* KeyVault.swift */; };
+		22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0041582B292F5363E6379903 /* SessionCryptoTests.swift */; };
 		42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */; };
+		86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */; };
 		87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B740F5AFE909ABC292736738 /* KeyVaultTests.swift */; };
 		938FF6B77C8A1E84A90F831D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 788122B7CBD9855AC6C57AE1 /* Assets.xcassets */; };
+		997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -24,12 +28,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0041582B292F5363E6379903 /* SessionCryptoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCryptoTests.swift; sourceTree = "<group>"; };
+		29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodecTests.swift; sourceTree = "<group>"; };
 		2EAF81D613BAEFE60C56953D /* PlaudLocalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudLocalApp.swift; sourceTree = "<group>"; };
 		3A25521F7B309F2454410A3C /* PlaudLocal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PlaudLocal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		788122B7CBD9855AC6C57AE1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7DE381D776BEB69ACFDCEEBF /* PlaudLocalTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PlaudLocalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8270AEF1AEA5926CF99317C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		92E92FA3ED80038CBD840BC1 /* KeyVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVault.swift; sourceTree = "<group>"; };
+		A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCrypto.swift; sourceTree = "<group>"; };
+		ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodec.swift; sourceTree = "<group>"; };
 		B740F5AFE909ABC292736738 /* KeyVaultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyVaultTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -49,6 +57,8 @@
 			isa = PBXGroup;
 			children = (
 				B740F5AFE909ABC292736738 /* KeyVaultTests.swift */,
+				29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */,
+				0041582B292F5363E6379903 /* SessionCryptoTests.swift */,
 			);
 			path = PlaudLocalTests;
 			sourceTree = "<group>";
@@ -66,6 +76,8 @@
 			isa = PBXGroup;
 			children = (
 				92E92FA3ED80038CBD840BC1 /* KeyVault.swift */,
+				ADEA9CAEE3B3FE40DA6F06E4 /* ProtocolCodec.swift */,
+				A1DDC9B2ED2F6D0AA3464002 /* SessionCrypto.swift */,
 			);
 			path = DeviceSession;
 			sourceTree = "<group>";
@@ -167,6 +179,8 @@
 			files = (
 				21FA5231C2C24565137409A9 /* KeyVault.swift in Sources */,
 				42D93D086BCBFB6848BE62ED /* PlaudLocalApp.swift in Sources */,
+				118E782A5C70F32FFC2F9A46 /* ProtocolCodec.swift in Sources */,
+				997DC01B538F2F97E545E6F8 /* SessionCrypto.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -175,6 +189,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				87F7E5A89F35BF5BA9F6EE9C /* KeyVaultTests.swift in Sources */,
+				86DC4903EE1E84D3D1A6F902 /* ProtocolCodecTests.swift in Sources */,
+				22AA1DD16D32A69B5DEA200C /* SessionCryptoTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
