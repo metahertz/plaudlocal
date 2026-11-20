@@ -1,17 +1,40 @@
 import Foundation
 import Security
 
-enum FileDecryptorError: Error, Equatable {
+enum FileDecryptorError: Error, Equatable, LocalizedError {
     case badMagic
     case unsupportedVersion(UInt16)
     case rsaFailed
     case needsReSignIn
     case integrityFailed
     case truncated
+    case notOgg
+
+    var errorDescription: String? {
+        switch self {
+        case .badMagic: return "Downloaded file is not a PLAUD.AI recording (download likely incomplete)"
+        case .unsupportedVersion(let v): return "Unsupported recording version \(v)"
+        case .rsaFailed, .needsReSignIn: return "Could not decrypt recording — sign in again in Settings"
+        case .integrityFailed: return "Recording failed integrity check"
+        case .truncated: return "Recording file is truncated"
+        case .notOgg: return "Decrypted audio is not playable Ogg Opus — download may be corrupt"
+        }
+    }
 }
 
 enum FileDecryptor {
     private static let magic = Data("PLAUD.AI".utf8)
+    private static let oggMagic = Data("OggS".utf8)
+
+    static func isPlaudContainer(_ data: Data) -> Bool {
+        data.count >= 512 && data.prefix(8) == magic
+    }
+
+    /// Duration seconds from the encrypted PLAUD.AI header (u32 @ offset 54).
+    static func durationSeconds(in fileData: Data) -> Int? {
+        guard isPlaudContainer(fileData), fileData.count >= 58 else { return nil }
+        return Int(readUInt32(fileData, at: 54))
+    }
 
     static func decrypt(fileData: Data, privateKeyPEM: String) throws -> Data {
         guard fileData.count >= 12 else { throw FileDecryptorError.truncated }
@@ -22,6 +45,8 @@ enum FileDecryptor {
 
         let headerSize = Int(readUInt16(fileData, at: 10))
         guard headerSize >= 512, fileData.count >= headerSize else { throw FileDecryptorError.truncated }
+        // A header-only file decrypts to empty audio — treat as truncated download.
+        guard fileData.count > headerSize else { throw FileDecryptorError.truncated }
 
         let counter = readUInt32(fileData, at: 128)
         let nonce = fileData.subdata(in: 132..<144)
@@ -38,6 +63,7 @@ enum FileDecryptor {
         let key32 = contentKey.count >= 32 ? contentKey.suffix(32) : contentKey
         guard key32.count == 32 else { throw FileDecryptorError.needsReSignIn }
 
+        let audio: Data
         if segmentSize > 0 {
             var out = Data()
             var offset = 0
@@ -48,10 +74,19 @@ enum FileDecryptor {
                 out.append(ChaCha20.encrypt(key: Data(key32), nonce: nonce, counter: 0, data: chunk))
                 offset = end
             }
-            return out
+            audio = out
+        } else {
+            audio = ChaCha20.encrypt(key: Data(key32), nonce: nonce, counter: counter, data: body)
         }
 
-        return ChaCha20.encrypt(key: Data(key32), nonce: nonce, counter: counter, data: body)
+        // Note Pro (segmentSize 0) yields Ogg directly. Reject garbage decrypts early.
+        if segmentSize == 0 {
+            guard audio.count >= 4, audio.prefix(4) == oggMagic else {
+                throw FileDecryptorError.notOgg
+            }
+        }
+        guard !audio.isEmpty else { throw FileDecryptorError.truncated }
+        return audio
     }
 
     private static func rsaDecryptPKCS1(cipher: Data, privateKeyPEM: String) throws -> Data {

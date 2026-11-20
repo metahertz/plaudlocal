@@ -16,5 +16,8 @@ final class NoteStoreTests: XCTestCase {
         XCTAssertEqual(listed[0].id, meta.id)
         let audioURL = store.noteDirectory(id: meta.id).appendingPathComponent("audio.ogg")
         XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+        XCTAssertTrue(store.containsSession(42))
+        XCTAssertFalse(store.containsSession(99))
+        XCTAssertEqual(try store.note(forSessionId: 42)?.id, meta.id)
     }
 }

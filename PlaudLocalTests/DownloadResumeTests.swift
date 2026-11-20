@@ -20,8 +20,14 @@ final class DownloadResumeTests: XCTestCase {
         endPacket.append(contentsOf: withUnsafeBytes(of: end.littleEndian) { Data($0) })
         endPacket.append(0) // len
 
+        // Sync-start ACK (cmd 28, status 0), then data, then end marker.
+        var syncAck = Data([0x01, 0x1c, 0x00])
+        syncAck.append(contentsOf: withUnsafeBytes(of: UInt32(7).littleEndian) { Data($0) })
+        syncAck.append(0) // status OK
+
         let ble = MockBLEClient(notifyChunks: [
-            recPacket(session: 7, offset: 50, payload: [0xFF, 0xFF]), // wrong — ignore
+            syncAck,
+            recPacket(session: 7, offset: 50, payload: [0xFF, 0xFF]), // duplicate/behind — ignore
             recPacket(session: 7, offset: 100, payload: [0x01, 0x02, 0x03]),
             endPacket,
         ])
@@ -47,21 +53,24 @@ final class DownloadResumeTests: XCTestCase {
 
     @MainActor
     func test_unlock_rejects_protocol30() async throws {
-        let ble = MockBLEClient(notifyChunks: [Data([0xFE, 0x30])])
+        // Device answers FE10 with FE30 (LE: 30 FE).
+        let ble = MockBLEClient(packetQueue: [Data([0x30, 0xFE, 0x00, 0x00])])
+        let id = UUID(uuidString: "00000000-0000-0000-0000-0000000000F3")!
+        ble.serials[id] = "881TESTSERIAL030"
         let vault = KeyVault(service: "com.local.plaudlocal.tests.p30")
         try vault.save(Data("pem".utf8), account: "plaud.rsaPrivatePEM")
-        let model = DeviceSessionModel(
-            ble: ble,
-            keyVault: vault,
-            userId: "u"
-        )
-        do {
-            try await model.unlock()
-            XCTFail("expected abort")
-        } catch SessionCryptoError.unsupportedProtocol30 {
-            // ok
-        } catch {
-            XCTFail("\(error)")
+        try vault.save(Data("pub".utf8), account: "plaud.rsaPublicPEM")
+        try vault.save(Data("token".utf8), account: "plaud.userToken")
+        try vault.save(Data(repeating: 0x11, count: 32), account: "plaud.snSign.881TESTSERIAL030")
+
+        let model = DeviceSessionModel(ble: ble, keyVault: vault)
+        await model.connect(to: id)
+        guard case .failed(let msg) = model.connectionState else {
+            return XCTFail("expected failed, got \(model.connectionState)")
         }
+        XCTAssertTrue(
+            msg.lowercased().contains("protocol 30") || msg.lowercased().contains("unsupported"),
+            "got: \(msg)"
+        )
     }
 }

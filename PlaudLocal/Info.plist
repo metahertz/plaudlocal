@@ -17,13 +17,17 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Plaud Local transcribes your Note Pro recordings on this iPhone.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Plaud Local talks to your Note Pro over its local Wi‑Fi hotspot during Fast Transfer.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

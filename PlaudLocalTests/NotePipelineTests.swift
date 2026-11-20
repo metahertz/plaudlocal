@@ -17,14 +17,14 @@ final class NotePipelineTests: XCTestCase {
         exporter.localFolderOverride = exportRoot
 
         let downloaded = root.appendingPathComponent("in.plaud")
-        try Data("ciphertext".utf8).write(to: downloaded)
+        try Self.fakePlaudContainer(duration: 5).write(to: downloaded)
 
         let pipeline = NotePipeline(
             store: store,
             transcriber: FakeTranscriber(text: "hello world"),
             summarizer: Summarizer(forceUnavailable: true),
             exporter: exporter,
-            decrypt: { data, _ in data },
+            decrypt: { _, _ in Data("OggSfakeaudio".utf8) },
             privateKeyPEMProvider: { "KEY" }
         )
 
@@ -40,4 +40,17 @@ final class NotePipelineTests: XCTestCase {
 struct FakeTranscriber: Transcribing {
     let text: String
     func transcribe(audioURL: URL) async throws -> String { text }
+}
+
+extension NotePipelineTests {
+    static func fakePlaudContainer(duration: UInt32) -> Data {
+        var d = Data("PLAUD.AI".utf8)
+        d.append(contentsOf: withUnsafeBytes(of: UInt16(1).littleEndian) { Data($0) })
+        d.append(contentsOf: withUnsafeBytes(of: UInt16(512).littleEndian) { Data($0) })
+        while d.count < 54 { d.append(0) }
+        d.append(contentsOf: withUnsafeBytes(of: duration.littleEndian) { Data($0) })
+        while d.count < 512 { d.append(0) }
+        d.append(Data("ciphertext-body".utf8))
+        return d
+    }
 }

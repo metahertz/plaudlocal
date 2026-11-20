@@ -9,14 +9,21 @@ settings:
   SWIFT_VERSION: "5.9"
   DEVELOPMENT_TEAM: 3C5PM5Q74H
   CODE_SIGN_STYLE: Automatic
-  CURRENT_PROJECT_VERSION: 1
-  MARKETING_VERSION: "0.1.0"
+  CURRENT_PROJECT_VERSION: 3
+  MARKETING_VERSION: "0.4.2"
+packages:
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit.git
+    from: 0.12.0
 targets:
   PlaudLocal:
     type: application
     platform: iOS
     sources:
       - path: PlaudLocal
+    dependencies:
+      - package: WhisperKit
+        product: WhisperKit
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.local.plaudlocal
       DEVELOPMENT_TEAM: 3C5PM5Q74H
@@ -28,11 +35,15 @@ targets:
       path: PlaudLocal/Info.plist
       properties:
         CFBundleDisplayName: Plaud Local
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         NSBluetoothAlwaysUsageDescription: Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.
         NSBluetoothPeripheralUsageDescription: Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.
+        NSSpeechRecognitionUsageDescription: Plaud Local transcribes your Note Pro recordings on this iPhone.
+        NSLocalNetworkUsageDescription: Plaud Local talks to your Note Pro over its local Wi‑Fi hotspot during Fast Transfer.
   PlaudLocalTests:
     type: bundle.unit-test
     platform: iOS

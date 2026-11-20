@@ -6,9 +6,19 @@ struct SettingsView: View {
     @AppStorage("export.nextcloudUser") private var nextcloudUser = ""
     @AppStorage("export.nextcloudPath") private var nextcloudPath = "PlaudLocal"
     @AppStorage("export.autoEnabled") private var autoExport = false
+    @AppStorage(ExportSettings.audioOnlyModeKey) private var audioOnlyMode = false
+    @AppStorage(TranscriptionSettings.engineKey) private var asrEngineRaw = TranscriptionEngine.apple.rawValue
+    @AppStorage(DeviceSessionModel.keepAwakeDuringDownloadKey) private var keepAwakeDuringDownload = false
     @State private var nextcloudPassword = ""
     @State private var status = ""
     @State private var showLogin = false
+
+    private var asrEngine: Binding<TranscriptionEngine> {
+        Binding(
+            get: { TranscriptionEngine(rawValue: asrEngineRaw) ?? .apple },
+            set: { asrEngineRaw = $0.rawValue }
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -42,8 +52,33 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Export") {
+                Section {
+                    Picker("Engine", selection: asrEngine) {
+                        ForEach(TranscriptionEngine.allCases) { engine in
+                            Text(engine.title).tag(engine)
+                        }
+                    }
+                    Text(asrEngine.wrappedValue.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Transcription")
+                } footer: {
+                    Text("Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it.")
+                }
+
+                Section {
+                    Toggle("Keep screen on while downloading", isOn: $keepAwakeDuringDownload)
+                } header: {
+                    Text("Device")
+                } footer: {
+                    Text("Prevents Auto-Lock while Plaud Local is open and a Note Pro download is in progress. The screen can still lock if you leave the app.")
+                }
+
+                Section {
+                    Toggle("Upload audio only (skip on-device AI)", isOn: $audioOnlyMode)
                     Toggle("Auto-export after processing", isOn: $autoExport)
+                        .disabled(audioOnlyMode)
                     TextField("Nextcloud WebDAV base URL", text: $nextcloudURL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -58,6 +93,12 @@ struct SettingsView: View {
                             status = "Nextcloud password saved to Keychain"
                         }
                     }
+                } header: {
+                    Text("Export")
+                } footer: {
+                    Text(audioOnlyMode
+                        ? "Downloads decrypt and upload audio.ogg (+ metadata) to Nextcloud without on-device transcription or summarization — use your own larger AI tools. You can still run Transcribe & summarize later from a note. Configure Nextcloud below."
+                        : "After on-device processing, optionally copy the note package to Nextcloud via WebDAV.")
                 }
                 if !status.isEmpty {
                     Section { Text(status).font(.footnote) }

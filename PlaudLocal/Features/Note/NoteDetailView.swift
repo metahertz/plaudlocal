@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 struct NoteDetailView: View {
@@ -5,16 +6,101 @@ struct NoteDetailView: View {
     @State private var meta: NoteMetadata?
     @State private var transcript = ""
     @State private var summary = ""
+    @State private var brief: MeetingBrief?
+    @State private var posterURL: URL?
+    @State private var player: AVAudioPlayer?
+    @State private var isPlaying = false
+    @State private var playError: String?
+    @State private var audioBytes: Int = 0
+    @State private var isReprocessing = false
+    @State private var isBuildingPoster = false
+    @State private var statusMessage: String?
+    @State private var sharePayload: SharePayload?
 
     var body: some View {
         List {
             if let meta {
                 Section("Info") {
                     LabeledContent("Title", value: meta.title)
+                    LabeledContent("Recording", value: meta.recordingLabel)
                     LabeledContent("Duration", value: "\(meta.durationSeconds)s")
-                    LabeledContent("Session", value: String(meta.sessionId))
+                    LabeledContent("Audio", value: ByteCountFormatter.string(fromByteCount: Int64(audioBytes), countStyle: .file))
+                    LabeledContent("ASR", value: meta.transcriptStatus.rawValue)
+                    LabeledContent("Summary", value: meta.summaryStatus.rawValue)
+                    LabeledContent("Poster", value: meta.briefStatus.rawValue)
+                    if meta.audioOnlyExport {
+                        Text("Imported as audio-only — on-device AI was skipped for cloud/external processing.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section("Playback") {
+                    if let playError {
+                        Text(playError).foregroundStyle(.red).font(.footnote)
+                    }
+                    Button {
+                        togglePlay()
+                    } label: {
+                        Label(isPlaying ? "Pause" : "Play", systemImage: isPlaying ? "pause.fill" : "play.fill")
+                    }
+                    .disabled(audioBytes == 0)
                 }
             }
+
+            if let brief {
+                Section("At a glance") {
+                    if let posterURL, let image = UIImage(contentsOfFile: posterURL.path) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                    }
+                    briefPreview(brief)
+                    Button {
+                        sharePoster()
+                    } label: {
+                        Label("Share poster", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(posterURL == nil)
+                }
+            }
+
+            Section {
+                Button {
+                    Task { await reprocess() }
+                } label: {
+                    if isReprocessing {
+                        HStack {
+                            ProgressView()
+                            Text("Transcribing…")
+                        }
+                    } else {
+                        Label("Transcribe & summarize", systemImage: "text.bubble")
+                    }
+                }
+                .disabled(isReprocessing || isBuildingPoster || audioBytes == 0)
+
+                Button {
+                    Task { await rebuildPoster() }
+                } label: {
+                    if isBuildingPoster {
+                        HStack {
+                            ProgressView()
+                            Text("Building poster…")
+                        }
+                    } else {
+                        Label("Rebuild poster", systemImage: "doc.richtext")
+                    }
+                }
+                .disabled(isReprocessing || isBuildingPoster || transcript.isEmpty)
+
+                if let statusMessage {
+                    Text(statusMessage).font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+
             Section("Transcript") {
                 Text(transcript.isEmpty ? "Not transcribed yet" : transcript)
                     .font(.body)
@@ -26,13 +112,199 @@ struct NoteDetailView: View {
         }
         .navigationTitle(meta?.title ?? "Note")
         .task { load() }
+        .onDisappear {
+            player?.stop()
+            isPlaying = false
+        }
+        .sheet(item: $sharePayload) { payload in
+            ActivityView(items: payload.items)
+        }
+    }
+
+    @ViewBuilder
+    private func briefPreview(_ brief: MeetingBrief) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if !brief.kind.isEmpty {
+                Text(brief.kind)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.12))
+                    .clipShape(Capsule())
+            }
+            if !brief.subtitle.isEmpty {
+                Text(brief.subtitle).font(.footnote).foregroundStyle(.secondary)
+            }
+            if !brief.decisions.isEmpty {
+                labeledBullets("Decisions", brief.decisions)
+            }
+            if !brief.topics.isEmpty {
+                Text("Topics").font(.subheadline.weight(.semibold))
+                ForEach(brief.topics) { topic in
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(topic.name).font(.body.weight(.semibold))
+                            if !topic.tag.isEmpty {
+                                Text(topic.tag)
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Text(topic.summary).font(.footnote).foregroundStyle(.secondary)
+                        ForEach(topic.points) { point in
+                            Text("\(point.title): \(point.detail)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            if !brief.actionItems.isEmpty {
+                Text("Next steps").font(.subheadline.weight(.semibold))
+                ForEach(Array(brief.actionOwners.enumerated()), id: \.offset) { _, group in
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let owner = group.owner {
+                            Text(owner + (group.role.map { " · \($0)" } ?? ""))
+                                .font(.caption.weight(.semibold))
+                        }
+                        ForEach(group.tasks, id: \.self) { task in
+                            Text("○ \(task)").font(.footnote)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func labeledBullets(_ title: String, _ items: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.subheadline.weight(.semibold))
+            ForEach(items, id: \.self) { item in
+                Text("• \(item)")
+            }
+        }
     }
 
     private func load() {
         let store = NoteStore()
-        meta = try? store.allNotes().first(where: { $0.id == noteId })
-        let dir = store.noteDirectory(id: noteId)
-        transcript = (try? String(contentsOf: dir.appendingPathComponent("transcript.md"), encoding: .utf8)) ?? ""
-        summary = (try? String(contentsOf: dir.appendingPathComponent("summary.md"), encoding: .utf8)) ?? ""
+        var loaded = try? store.allNotes().first(where: { $0.id == noteId })
+        transcript = store.readTranscript(noteId: noteId) ?? ""
+        summary = store.readSummary(noteId: noteId) ?? ""
+        brief = store.loadBrief(noteId: noteId)
+        if var note = loaded {
+            let url = store.audioURL(for: note)
+            // Size and magic come from file attributes / a 4-byte read — never load the recording.
+            let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+            audioBytes = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+            if note.durationSeconds <= 0, let secs = AudioDuration.seconds(at: url) {
+                note.durationSeconds = secs
+                try? store.updateMetadata(note)
+            }
+            loaded = note
+            posterURL = store.posterURL(for: note)
+            if audioBytes == 0 {
+                playError = "Audio file is empty — re-download from Device."
+            } else if let handle = try? FileHandle(forReadingFrom: url) {
+                let magic = try? handle.read(upToCount: 4)
+                try? handle.close()
+                if let magic, magic != Data("OggS".utf8) {
+                    playError = "Audio is not Ogg Opus — re-download from Device."
+                }
+            }
+        }
+        meta = loaded
     }
+
+    private func reprocess() async {
+        isReprocessing = true
+        statusMessage = "Running \(TranscriptionSettings.engine.title)…"
+        defer { isReprocessing = false }
+        do {
+            var settings = ExportSettings.load()
+            settings.autoExportEnabled = UserDefaults.standard.bool(forKey: "export.autoEnabled")
+            let pipeline = NotePipeline(
+                store: NoteStore(),
+                transcriber: Transcriber(engine: TranscriptionSettings.engine),
+                summarizer: Summarizer(),
+                exporter: Exporter(settings: settings)
+            )
+            let updated = try await pipeline.reprocess(noteId: noteId)
+            meta = updated
+            load()
+            statusMessage = updated.briefStatus == .done
+                ? "Transcript, summary, and poster updated"
+                : "Transcript updated (poster \(updated.briefStatus.rawValue))"
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private func rebuildPoster() async {
+        isBuildingPoster = true
+        statusMessage = "Building poster…"
+        defer { isBuildingPoster = false }
+        do {
+            var settings = ExportSettings.load()
+            settings.autoExportEnabled = false
+            let pipeline = NotePipeline(
+                store: NoteStore(),
+                transcriber: Transcriber(engine: TranscriptionSettings.engine),
+                summarizer: Summarizer(),
+                exporter: Exporter(settings: settings)
+            )
+            let updated = try await pipeline.rebuildPoster(noteId: noteId)
+            meta = updated
+            load()
+            statusMessage = updated.briefStatus == .done ? "Poster updated" : "Poster \(updated.briefStatus.rawValue)"
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private func sharePoster() {
+        guard let posterURL else { return }
+        sharePayload = SharePayload(items: [posterURL])
+    }
+
+    private func togglePlay() {
+        if isPlaying {
+            player?.pause()
+            isPlaying = false
+            return
+        }
+        guard let meta else { return }
+        let url = NoteStore().audioURL(for: meta)
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+            if player == nil {
+                player = try AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+            guard player?.play() == true else {
+                playError = "Could not start playback"
+                return
+            }
+            playError = nil
+            isPlaying = true
+        } catch {
+            playError = error.localizedDescription
+            isPlaying = false
+        }
+    }
+}
+
+private struct SharePayload: Identifiable {
+    let id = UUID()
+    let items: [Any]
+}
+
+private struct ActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

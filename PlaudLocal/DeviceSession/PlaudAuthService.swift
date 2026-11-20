@@ -278,6 +278,20 @@ final class PlaudAuthService: NSObject, ObservableObject {
         return "https://\(h)"
     }
 
+    /// JWT `sub` claim is the Plaud user_id / BLE bind token.
+    static func subject(of token: String) -> String? {
+        let parts = token.split(separator: ".")
+        guard parts.count >= 2,
+              let payload = base64URLDecode(String(parts[1])),
+              let obj = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] else {
+            return nil
+        }
+        if let sub = obj["sub"] as? String { return sub }
+        if let n = obj["sub"] as? NSNumber { return n.stringValue }
+        if let i = obj["sub"] as? Int { return String(i) }
+        return nil
+    }
+
     private func jwtClaim(_ token: String, key: String) -> String? {
         let parts = token.split(separator: ".")
         guard parts.count >= 2,
