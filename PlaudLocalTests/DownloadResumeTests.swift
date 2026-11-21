@@ -3,9 +3,9 @@ import XCTest
 
 final class DownloadResumeTests: XCTestCase {
     @MainActor
-    func test_download_ignores_wrong_offset_and_writes_at_expected() async throws {
-        // session 7, offset 100, 3 bytes payload — but part file already has 100 bytes,
-        // so only payload at offset 100 should append; offset 50 must be ignored.
+    func test_download_discards_stale_part_and_ignores_behind_offsets() async throws {
+        // Downloads always restart from offset 0: a leftover .part file is discarded,
+        // and a retransmitted packet behind the write position must be ignored.
         func recPacket(session: UInt32, offset: UInt32, payload: [UInt8]) -> Data {
             var d = Data([0x02])
             d.append(contentsOf: withUnsafeBytes(of: session.littleEndian) { Data($0) })
@@ -27,8 +27,9 @@ final class DownloadResumeTests: XCTestCase {
 
         let ble = MockBLEClient(notifyChunks: [
             syncAck,
-            recPacket(session: 7, offset: 50, payload: [0xFF, 0xFF]), // duplicate/behind — ignore
-            recPacket(session: 7, offset: 100, payload: [0x01, 0x02, 0x03]),
+            recPacket(session: 7, offset: 0, payload: [0x01, 0x02, 0x03]),
+            recPacket(session: 7, offset: 1, payload: [0xFF, 0xFF]), // duplicate/behind — ignore
+            recPacket(session: 7, offset: 3, payload: [0x04, 0x05]),
             endPacket,
         ])
         let model = DeviceSessionModel(
@@ -39,16 +40,14 @@ final class DownloadResumeTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let part = dir.appendingPathComponent("7.plaud.part")
-        try Data(repeating: 0xAB, count: 100).write(to: part)
+        try Data(repeating: 0xAB, count: 100).write(to: part) // stale leftover
 
         let url = try await model.download(
-            recording: DeviceRecording(sessionId: 7, size: 103),
+            recording: DeviceRecording(sessionId: 7, size: 5),
             to: dir
         )
         let data = try Data(contentsOf: url)
-        XCTAssertEqual(data.count, 103)
-        XCTAssertEqual(Array(data.suffix(3)), [0x01, 0x02, 0x03])
-        XCTAssertFalse(data.contains(where: { $0 == 0xFF }))
+        XCTAssertEqual(Array(data), [0x01, 0x02, 0x03, 0x04, 0x05])
     }
 
     @MainActor
