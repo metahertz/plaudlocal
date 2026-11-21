@@ -3,7 +3,7 @@ import XCTest
 
 final class KeyVaultTests: XCTestCase {
     func test_roundTripSecret() throws {
-        let vault = KeyVault(service: "com.local.plaudlocal.tests")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests")
         let payload = Data("secret-bytes".utf8)
         try vault.save(payload, account: "plaud.userToken")
         XCTAssertEqual(vault.load(account: "plaud.userToken"), payload)

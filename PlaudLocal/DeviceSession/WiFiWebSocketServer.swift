@@ -8,7 +8,7 @@ final class WiFiWebSocketServer: @unchecked Sendable {
     private let port: NWEndpoint.Port
     private var listener: NWListener?
     private var connection: NWConnection?
-    private let queue = DispatchQueue(label: "com.local.plaudlocal.wifi.ws")
+    private let queue = DispatchQueue(label: "dev.metahertz.plaudlocal.wifi.ws")
     private var rxBuffer = Data()
     /// Frames are delivered through one ordered stream + one consumer task. A Task per frame
     /// let frames overtake each other, which the sequence-checked crypto then rejected.

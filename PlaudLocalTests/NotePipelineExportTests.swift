@@ -6,7 +6,7 @@ final class NotePipelineExportTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let store = NoteStore(root: root.appendingPathComponent("notes"))
-        let vault = KeyVault(service: "com.local.plaudlocal.tests.exportfail")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests.exportfail")
         try vault.save(Data("KEY".utf8), account: "plaud.rsaPrivatePEM")
 
         var settings = ExportSettings.load(keyVault: vault)
@@ -34,7 +34,7 @@ final class NotePipelineExportTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let store = NoteStore(root: root.appendingPathComponent("notes"))
-        let vault = KeyVault(service: "com.local.plaudlocal.tests.audioonly")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests.audioonly")
         try vault.save(Data("KEY".utf8), account: "plaud.rsaPrivatePEM")
 
         var settings = ExportSettings.load(keyVault: vault)
@@ -76,7 +76,7 @@ final class NotePipelineExportTests: XCTestCase {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let store = NoteStore(root: root.appendingPathComponent("notes"))
-        var settings = ExportSettings.load(keyVault: KeyVault(service: "com.local.plaudlocal.tests.nokey"))
+        var settings = ExportSettings.load(keyVault: KeyVault(service: "dev.metahertz.plaudlocal.tests.nokey"))
         settings.autoExportEnabled = false
         let exporter = Exporter(settings: settings)
         let downloaded = root.appendingPathComponent("in.plaud")

@@ -1,6 +1,6 @@
 name: PlaudLocal
 options:
-  bundleIdPrefix: com.local
+  bundleIdPrefix: dev.metahertz
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16.0"
@@ -25,7 +25,7 @@ targets:
       - package: WhisperKit
         product: WhisperKit
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.local.plaudlocal
+      PRODUCT_BUNDLE_IDENTIFIER: dev.metahertz.plaudlocal
       DEVELOPMENT_TEAM: 3C5PM5Q74H
       CODE_SIGN_STYLE: Automatic
       INFOPLIST_FILE: PlaudLocal/Info.plist
@@ -52,7 +52,7 @@ targets:
     dependencies:
       - target: PlaudLocal
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.local.plaudlocal.tests
+      PRODUCT_BUNDLE_IDENTIFIER: dev.metahertz.plaudlocal.tests
       GENERATE_INFOPLIST_FILE: true
 schemes:
   PlaudLocal:

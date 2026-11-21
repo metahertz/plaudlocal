@@ -8,7 +8,7 @@ final class NotePipelineTests: XCTestCase {
         let exportRoot = root.appendingPathComponent("export")
         try FileManager.default.createDirectory(at: exportRoot, withIntermediateDirectories: true)
 
-        let vault = KeyVault(service: "com.local.plaudlocal.tests.pipeline")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests.pipeline")
         try vault.save(Data("KEY".utf8), account: "plaud.rsaPrivatePEM")
 
         var settings = ExportSettings.load(keyVault: vault)

@@ -393,7 +393,7 @@ final class PlaudAuthService: NSObject, ObservableObject {
 
     /// Test seam: decrypt a Fernet token produced with Plaud's embedded key.
     static func decryptFernetForTests(_ tokenUTF8: String) throws -> Data {
-        let service = PlaudAuthService(keyVault: KeyVault(service: "com.local.plaudlocal.fernet.tests"))
+        let service = PlaudAuthService(keyVault: KeyVault(service: "dev.metahertz.plaudlocal.fernet.tests"))
         return try service.decryptFernet(Data(tokenUTF8.utf8))
     }
 }

@@ -34,7 +34,7 @@ final class ExporterTests: XCTestCase {
         let exportRoot = root.appendingPathComponent("export")
         try FileManager.default.createDirectory(at: exportRoot, withIntermediateDirectories: true)
 
-        var settings = ExportSettings.load(keyVault: KeyVault(service: "com.local.plaudlocal.tests.export"))
+        var settings = ExportSettings.load(keyVault: KeyVault(service: "dev.metahertz.plaudlocal.tests.export"))
         settings.autoExportEnabled = true
         var exporter = Exporter(settings: settings)
         exporter.localFolderOverride = exportRoot

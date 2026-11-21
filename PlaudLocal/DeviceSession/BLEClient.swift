@@ -63,7 +63,7 @@ final class BLEClient: NSObject, BLEClienting {
 
     /// Dedicated CB queue — keeping CoreBluetooth off the main thread avoids download
     /// UI/file work starving notifications (which caused offset gaps + resume storms).
-    private let bleQueue = DispatchQueue(label: "com.local.plaudlocal.ble.central")
+    private let bleQueue = DispatchQueue(label: "dev.metahertz.plaudlocal.ble.central")
     private static let bleQueueKey = DispatchSpecificKey<UInt8>()
     private let packetLock = NSLock()
 
@@ -91,7 +91,7 @@ final class BLEClient: NSObject, BLEClienting {
     private var notifyStreamContinuation: AsyncStream<Data>.Continuation?
     private var session: SessionCrypto?
     /// Serializes seal/open so CB notify floods and event-acks cannot clobber send/recv seq.
-    private let sessionQueue = DispatchQueue(label: "com.local.plaudlocal.ble.session")
+    private let sessionQueue = DispatchQueue(label: "dev.metahertz.plaudlocal.ble.session")
     private var writeChain: Task<Void, Never>?
     private(set) var decryptDropCount: Int = 0
 

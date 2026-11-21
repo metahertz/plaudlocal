@@ -6,7 +6,7 @@ final class DeviceSessionModelTests: XCTestCase {
     func test_protocol30_aborts_during_unlock() async {
         // FE10 write → device answers with FE30.
         let ble = MockBLEClient(packetQueue: [Data([0x30, 0xFE, 0x01, 0x00])])
-        let vault = KeyVault(service: "com.local.plaudlocal.tests.device.p30")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests.device.p30")
         try? vault.save(Data("-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----".utf8), account: "plaud.rsaPrivatePEM")
         try? vault.save(Data("-----BEGIN PUBLIC KEY-----\nMIIB\n-----END PUBLIC KEY-----".utf8), account: "plaud.rsaPublicPEM")
         try? vault.save(Data("tok.payload.sig".utf8), account: "plaud.userToken")
@@ -31,7 +31,7 @@ final class DeviceSessionModelTests: XCTestCase {
     @MainActor
     func test_missing_serial_fails() async {
         let ble = MockBLEClient(packetQueue: [])
-        let vault = KeyVault(service: "com.local.plaudlocal.tests.device.noserial")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests.device.noserial")
         try? vault.save(Data("pem".utf8), account: "plaud.rsaPrivatePEM")
         try? vault.save(Data("pub".utf8), account: "plaud.rsaPublicPEM")
         try? vault.save(Data("token".utf8), account: "plaud.userToken")
@@ -51,7 +51,7 @@ final class DeviceSessionModelTests: XCTestCase {
         let ble = MockBLEClient(packetQueue: [])
         let model = DeviceSessionModel(
             ble: ble,
-            keyVault: KeyVault(service: "com.local.plaudlocal.tests.device2")
+            keyVault: KeyVault(service: "dev.metahertz.plaudlocal.tests.device2")
         )
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

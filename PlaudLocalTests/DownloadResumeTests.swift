@@ -33,7 +33,7 @@ final class DownloadResumeTests: XCTestCase {
         ])
         let model = DeviceSessionModel(
             ble: ble,
-            keyVault: KeyVault(service: "com.local.plaudlocal.tests.resume"),
+            keyVault: KeyVault(service: "dev.metahertz.plaudlocal.tests.resume"),
             userId: "u"
         )
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -57,7 +57,7 @@ final class DownloadResumeTests: XCTestCase {
         let ble = MockBLEClient(packetQueue: [Data([0x30, 0xFE, 0x00, 0x00])])
         let id = UUID(uuidString: "00000000-0000-0000-0000-0000000000F3")!
         ble.serials[id] = "881TESTSERIAL030"
-        let vault = KeyVault(service: "com.local.plaudlocal.tests.p30")
+        let vault = KeyVault(service: "dev.metahertz.plaudlocal.tests.p30")
         try vault.save(Data("pem".utf8), account: "plaud.rsaPrivatePEM")
         try vault.save(Data("pub".utf8), account: "plaud.rsaPublicPEM")
         try vault.save(Data("token".utf8), account: "plaud.userToken")

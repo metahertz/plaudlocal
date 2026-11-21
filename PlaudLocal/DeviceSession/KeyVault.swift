@@ -8,7 +8,7 @@ enum KeyVaultError: Error {
 struct KeyVault {
     let service: String
 
-    init(service: String = "com.local.plaudlocal") {
+    init(service: String = "dev.metahertz.plaudlocal") {
         self.service = service
     }
 
