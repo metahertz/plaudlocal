@@ -292,6 +292,23 @@ class JobTests(ServerTestCase):
         self.assertEqual(done["summary_error"], SUMMARY_NOT_CONFIGURED)
         self.assertEqual(self.fake.chat_requests, [])
 
+    def test_transcript_only_upload_skips_the_summary(self):
+        self.configure()
+        status, job = self.upload(query="?summarize=0")
+        self.assertEqual(status, 202)
+        done = self.wait_for(job["id"])
+        self.assertEqual((done["status"], done["summary"], done["summary_error"]), ("done", None, None))
+        self.assertFalse(done["want_summary"])
+        self.assertEqual(self.fake.chat_requests, [])
+        # It can serve another transcript-only request, but not one that wants a summary.
+        self.assertEqual(self.upload(query="?summarize=0")[1]["id"], job["id"])
+        status, full = self.upload()
+        self.assertEqual(status, 202)
+        full_done = self.wait_for(full["id"])
+        self.assertEqual(full_done["summary"], "Summary: Alice sends the report Friday.")
+        # A finished full job covers a later transcript-only request.
+        self.assertEqual(self.upload(query="?summarize=0")[1]["id"], full["id"])
+
     def test_upload_is_refused_when_transcription_is_not_configured(self):
         status, body = self.upload()
         self.assertEqual(status, 409)
@@ -405,6 +422,19 @@ class SocketSmokeTest(unittest.TestCase):
             finally:
                 server.shutdown()
                 server.server_close()
+
+
+class MigrationTests(unittest.TestCase):
+    def test_older_database_gains_the_want_summary_column(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, _, store = build(tmp, admin_password=ADMIN_PASSWORD)
+            job = store.create_job(kind="text", input_hash="h", transcript="words")
+            store._conn().execute("ALTER TABLE jobs DROP COLUMN want_summary")
+            store._conn().commit()
+            store.close()
+            _, _, reopened = build(tmp, admin_password=ADMIN_PASSWORD)
+            self.addCleanup(reopened.close)
+            self.assertEqual(reopened.get_job(job["id"])["want_summary"], 1)
 
 
 class SplitTests(unittest.TestCase):

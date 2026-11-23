@@ -16,7 +16,7 @@ final class RemoteProcessingTests: XCTestCase {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         return RemoteProcessingClient(
-            baseURL: URL(string: "http://server.test:8080")!,
+            baseURL: URL(string: "https://server.test")!,
             token: "secret-token",
             session: URLSession(configuration: config)
         )
@@ -66,8 +66,8 @@ final class RemoteProcessingTests: XCTestCase {
 
     func test_server_url_is_normalized_and_validated() {
         XCTAssertEqual(
-            RemoteProcessingSettings.normalizedURL(" http://192.168.1.20:8080/ ")?.absoluteString,
-            "http://192.168.1.20:8080"
+            RemoteProcessingSettings.normalizedURL(" https://192.168.1.20:8443/ ")?.absoluteString,
+            "https://192.168.1.20:8443"
         )
         XCTAssertEqual(
             RemoteProcessingSettings.normalizedURL("https://plaud.example.com/remote//")?.absoluteString,
@@ -76,18 +76,22 @@ final class RemoteProcessingTests: XCTestCase {
         XCTAssertNil(RemoteProcessingSettings.normalizedURL(""))
         XCTAssertNil(RemoteProcessingSettings.normalizedURL("192.168.1.20:8080"))
         XCTAssertNil(RemoteProcessingSettings.normalizedURL("ftp://example.com"))
+        // Plain HTTP is refused: recordings and the token must not travel unencrypted.
+        XCTAssertNil(RemoteProcessingSettings.normalizedURL("http://192.168.1.20:8080"))
     }
 
     func test_client_requires_enabled_url_and_token() {
         var settings = RemoteProcessingSettings(
-            enabled: true, serverURL: URL(string: "http://server.test")!, fallbackOnDevice: true, token: "t"
+            enabled: true, serverURL: URL(string: "https://server.test")!, fallbackOnDevice: true, token: "t"
         )
         XCTAssertNotNil(settings.client)
         settings.token = ""
         XCTAssertNil(settings.client)
+        XCTAssertNil(settings.connection)
         settings.token = "t"
         settings.enabled = false
         XCTAssertNil(settings.client)
+        XCTAssertNotNil(settings.connection, "a configured server stays usable for one-off runs")
     }
 
     // MARK: - Transcribe + summarize
@@ -127,6 +131,22 @@ final class RemoteProcessingTests: XCTestCase {
         XCTAssertEqual(queryValue("client_ref", in: upload), "note-abc")
         XCTAssertEqual(queryValue("title", in: upload), "Mon 3 Nov, 10:15")
         XCTAssertNil(queryValue("force", in: upload))
+        XCTAssertNil(queryValue("summarize", in: upload))
+    }
+
+    func test_transcript_only_upload_tells_the_server_to_skip_the_summary() async throws {
+        let audio = try makeNoteAudio()
+        stub { [self] method, _ in
+            method == "POST" ? (202, job("queued")) : (200, job("done", transcript: "Only text."))
+        }
+        let registry = RemoteJobRegistry()
+        let transcript = try await RemoteTranscriber(
+            client: makeClient(), registry: registry, polling: fastPolling, wantSummary: false
+        ).transcribe(audioURL: audio)
+        XCTAssertEqual(transcript, "Only text.")
+        let upload = try XCTUnwrap(requests.first(where: { $0.httpMethod == "POST" }))
+        XCTAssertEqual(queryValue("summarize", in: upload), "0")
+        XCTAssertNil(registry.jobID(forTranscript: transcript), "a summary-less job must not be offered to the summary stage")
     }
 
     func test_force_asks_the_server_for_a_fresh_run() async throws {

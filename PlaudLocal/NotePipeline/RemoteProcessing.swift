@@ -3,6 +3,7 @@ import Foundation
 // Optional hand-off of transcription and summarization to a self-hosted
 // "Plaud Remote" server (see server/ in this repo). The server queues each
 // recording and runs it against the models configured in its web UI.
+// The app only connects to it over HTTPS.
 
 // MARK: - Settings
 
@@ -10,6 +11,8 @@ struct RemoteProcessingSettings {
     static let enabledKey = "remote.enabled"
     static let serverURLKey = "remote.serverURL"
     static let fallbackKey = "remote.fallbackOnDevice"
+    static let transcribeKey = "remote.transcribe"
+    static let summarizeKey = "remote.summarize"
     static let tokenAccount = "remote.apiToken"
 
     var enabled: Bool
@@ -17,33 +20,41 @@ struct RemoteProcessingSettings {
     /// Use on-device transcription / summarization when the server can't do the job.
     var fallbackOnDevice: Bool
     var token: String?
+    /// Per-stage switches for remote mode; a stage that is off runs on-device.
+    var transcribeRemotely = true
+    var summarizeRemotely = true
 
     static func load(defaults: UserDefaults = .standard, keyVault: KeyVault = KeyVault()) -> RemoteProcessingSettings {
         RemoteProcessingSettings(
             enabled: defaults.bool(forKey: enabledKey),
             serverURL: normalizedURL(defaults.string(forKey: serverURLKey) ?? ""),
             fallbackOnDevice: defaults.object(forKey: fallbackKey) as? Bool ?? true,
-            token: keyVault.load(account: tokenAccount).flatMap { String(data: $0, encoding: .utf8) }
+            token: keyVault.load(account: tokenAccount).flatMap { String(data: $0, encoding: .utf8) },
+            transcribeRemotely: defaults.object(forKey: transcribeKey) as? Bool ?? true,
+            summarizeRemotely: defaults.object(forKey: summarizeKey) as? Bool ?? true
         )
     }
 
-    /// Accepts only http(s) URLs with a host; trailing slashes are dropped.
+    /// Accepts only https URLs with a host; trailing slashes are dropped.
     static func normalizedURL(_ raw: String) -> URL? {
         var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         while text.hasSuffix("/") { text.removeLast() }
         guard let url = URL(string: text),
-              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              url.scheme?.lowercased() == "https",
               let host = url.host, !host.isEmpty else {
             return nil
         }
         return url
     }
 
-    /// A client when remote processing is switched on and fully configured.
-    var client: RemoteProcessingClient? {
-        guard enabled, let serverURL, let token, !token.isEmpty else { return nil }
+    /// A client whenever the server address and token are set, whatever the mode.
+    var connection: RemoteProcessingClient? {
+        guard let serverURL, let token, !token.isEmpty else { return nil }
         return RemoteProcessingClient(baseURL: serverURL, token: token)
     }
+
+    /// A client only when remote mode is switched on.
+    var client: RemoteProcessingClient? { enabled ? connection : nil }
 }
 
 // MARK: - Errors
@@ -115,13 +126,17 @@ struct RemoteProcessingClient: Sendable {
 
     /// Upload a recording. The server returns the existing job when it already has this
     /// audio queued or finished with the same model settings, unless `force` is set.
-    func submitAudio(fileURL: URL, clientRef: String, title: String, force: Bool = false) async throws -> RemoteJob {
+    /// With `summarize` off the server stops after the transcript.
+    func submitAudio(
+        fileURL: URL, clientRef: String, title: String, force: Bool = false, summarize: Bool = true
+    ) async throws -> RemoteJob {
         var query = [
             URLQueryItem(name: "client_ref", value: clientRef),
             URLQueryItem(name: "title", value: title),
             URLQueryItem(name: "filename", value: fileURL.lastPathComponent),
         ]
         if force { query.append(URLQueryItem(name: "force", value: "1")) }
+        if !summarize { query.append(URLQueryItem(name: "summarize", value: "0")) }
         var request = makeRequest("POST", path: "api/v1/jobs", query: query)
         request.setValue("audio/ogg", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 900
@@ -250,6 +265,8 @@ struct RemoteTranscriber: Transcribing {
     var polling = RemotePolling()
     /// Ask the server for a fresh run even if it has results for this audio.
     var force = false
+    /// Off when the summary will be made on-device (or not at all).
+    var wantSummary = true
 
     func transcribe(audioURL: URL) async throws -> String {
         guard FileManager.default.fileExists(atPath: audioURL.path) else {
@@ -260,14 +277,18 @@ struct RemoteTranscriber: Transcribing {
             fileURL: audioURL,
             clientRef: noteDirectory.lastPathComponent,
             title: Self.recordingLabel(in: noteDirectory),
-            force: force
+            force: force,
+            summarize: wantSummary
         )
         let job = try await polling.wait(
             for: submitted, client: client, timeout: polling.transcriptTimeout, what: "transcription"
         ) { !($0.transcript ?? "").isEmpty }
         let transcript = (job.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !transcript.isEmpty else { throw TranscriberError.emptyTranscript }
-        registry.remember(jobID: job.id, forTranscript: transcript)
+        if wantSummary {
+            // Lets the summary stage pick up this same job instead of submitting the text again.
+            registry.remember(jobID: job.id, forTranscript: transcript)
+        }
         return transcript
     }
 
@@ -340,41 +361,5 @@ struct FallbackSummarizer: Summarizing {
             // fall through to the on-device summarizer
         }
         return try await fallback.summarize(transcript: transcript)
-    }
-}
-
-// MARK: - Engine selection
-
-/// Picks the transcription and summarization engines from the current settings.
-enum PipelineEngines {
-    static func transcriber(
-        remote: RemoteProcessingSettings = .load(),
-        force: Bool = false
-    ) -> any Transcribing {
-        let onDevice = Transcriber(engine: TranscriptionSettings.engine)
-        guard let client = remote.client else { return onDevice }
-        let remoteEngine = RemoteTranscriber(client: client, force: force)
-        if remote.fallbackOnDevice {
-            return FallbackTranscriber(primary: remoteEngine, fallback: onDevice)
-        }
-        return remoteEngine
-    }
-
-    static func summarizer(
-        remote: RemoteProcessingSettings = .load(),
-        force: Bool = false
-    ) -> any Summarizing {
-        let onDevice = Summarizer()
-        guard let client = remote.client else { return onDevice }
-        let remoteEngine = RemoteSummarizer(client: client, force: force)
-        if remote.fallbackOnDevice {
-            return FallbackSummarizer(primary: remoteEngine, fallback: onDevice)
-        }
-        return remoteEngine
-    }
-
-    /// Name of the transcription engine for status messages.
-    static var transcriberTitle: String {
-        RemoteProcessingSettings.load().client != nil ? "remote server" : TranscriptionSettings.engine.title
     }
 }

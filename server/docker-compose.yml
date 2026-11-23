@@ -9,6 +9,10 @@ services:
       # Web UI password for user "admin". If unset, one is generated on first
       # start and printed once in the container log.
       PLAUD_REMOTE_ADMIN_PASSWORD: ${PLAUD_REMOTE_ADMIN_PASSWORD:-}
+      # The app only connects over HTTPS. Either put a TLS proxy in front, or
+      # mount a certificate and key and point these at them:
+      # PLAUD_REMOTE_TLS_CERT: /certs/fullchain.pem
+      # PLAUD_REMOTE_TLS_KEY: /certs/privkey.pem
       # PLAUD_REMOTE_MAX_UPLOAD_MB: "500"
       # PLAUD_REMOTE_WORKERS: "1"
     volumes:

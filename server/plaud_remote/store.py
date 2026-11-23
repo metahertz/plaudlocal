@@ -79,7 +79,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     transcript TEXT,
     summary TEXT,
     error TEXT,
-    summary_error TEXT
+    summary_error TEXT,
+    want_summary INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs (status, next_attempt_at, created_at);
 CREATE INDEX IF NOT EXISTS jobs_dedupe ON jobs (kind, input_hash, config_hash);
@@ -115,6 +116,9 @@ class Store:
         self._connections_lock = threading.Lock()
         with self._conn() as conn:
             conn.executescript(_SCHEMA)
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
+            if "want_summary" not in columns:  # databases created before per-job options
+                conn.execute("ALTER TABLE jobs ADD COLUMN want_summary INTEGER NOT NULL DEFAULT 1")
 
     def _conn(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
@@ -226,30 +230,35 @@ class Store:
         audio_path: str | None = None,
         audio_bytes: int = 0,
         transcript: str | None = None,
+        want_summary: bool = True,
     ) -> dict[str, Any]:
         now = time.time()
         job_id = uuid.uuid4().hex
         with self._conn() as conn:
             conn.execute(
                 "INSERT INTO jobs (id, kind, client_ref, title, status, created_at, updated_at, "
-                "filename, content_type, audio_path, audio_bytes, input_hash, config_hash, transcript) "
-                "VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "filename, content_type, audio_path, audio_bytes, input_hash, config_hash, transcript, "
+                "want_summary) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     job_id, kind, client_ref[:200], title[:300], now, now, filename[:200],
                     content_type[:100], audio_path, audio_bytes, input_hash, self.config_hash(),
-                    transcript,
+                    transcript, int(want_summary),
                 ),
             )
         return self.get_job(job_id)  # type: ignore[return-value]
 
-    def find_reusable_job(self, kind: str, input_hash: str) -> dict[str, Any] | None:
-        """An in-flight or cleanly finished job for the same input and model settings."""
+    def find_reusable_job(self, kind: str, input_hash: str, want_summary: bool = True) -> dict[str, Any] | None:
+        """An in-flight or cleanly finished job for the same input and model settings.
+
+        A job that skipped the summary cannot serve a request that wants one.
+        """
         row = self._conn().execute(
             "SELECT * FROM jobs WHERE kind = ? AND input_hash = ? AND config_hash = ? "
+            "AND want_summary >= ? "
             "AND (status IN ('queued', 'transcribing', 'summarizing') "
             "     OR (status = 'done' AND summary_error IS NULL)) "
             "ORDER BY created_at DESC LIMIT 1",
-            (kind, input_hash, self.config_hash()),
+            (kind, input_hash, self.config_hash(), int(want_summary)),
         ).fetchone()
         return dict(row) if row else None
 

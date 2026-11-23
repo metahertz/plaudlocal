@@ -78,6 +78,7 @@ def public_job(job: dict[str, Any], include_text: bool = True) -> dict[str, Any]
         "audio_bytes": job["audio_bytes"],
         "error": job["error"],
         "summary_error": job["summary_error"],
+        "want_summary": bool(job["want_summary"]),
         "has_transcript": job["transcript"] is not None,
         "has_summary": job["summary"] is not None,
     }
@@ -289,8 +290,9 @@ class Handler(BaseHTTPRequestHandler):
             self._body_consumed = True
 
             input_hash = digest.hexdigest()
+            want_summary = param("summarize") not in ("0", "false")
             if param("force") not in ("1", "true"):
-                existing = store.find_reusable_job("audio", input_hash)
+                existing = store.find_reusable_job("audio", input_hash, want_summary)
                 if existing is not None:
                     self._send_json(200, public_job(existing))
                     return
@@ -303,6 +305,7 @@ class Handler(BaseHTTPRequestHandler):
                 content_type=self.headers.get("Content-Type", "audio/ogg").split(";")[0].strip(),
                 audio_path=str(temp_path),
                 audio_bytes=length,
+                want_summary=want_summary,
             )
             keep_file = True
         finally:

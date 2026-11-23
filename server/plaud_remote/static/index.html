@@ -74,7 +74,7 @@
 
   <section>
     <h2>Connect the app</h2>
-    <p class="sub">In Plaud Local, open Settings → Remote processing and enter this server address and token.</p>
+    <p class="sub">In Plaud Local, open Settings, choose Remote server, and enter this server address and token. The app only connects over HTTPS.</p>
     <div class="grid">
       <label class="wide">Server address
         <input type="text" id="serverUrl" readonly>
@@ -337,6 +337,7 @@ async function loadJobs() {
     cell(job.title || (job.kind === "text" ? "Summary only" : "Untitled recording"), "title");
     const statusCell = cell(chip(job.status, STATUS_KIND[job.status]));
     if (job.status === "done" && job.summary_error) statusCell.append(" ", chip("no summary", "warn"));
+    if (job.kind === "audio" && !job.want_summary) statusCell.append(" ", chip("transcript only"));
     cell(formatSize(job.audio_bytes));
     const actions = cell("", "actions");
     actions.append(actionButton("View", () => showJob(job.id)), " ");

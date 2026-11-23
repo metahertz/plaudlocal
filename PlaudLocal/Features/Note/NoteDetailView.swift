@@ -13,6 +13,7 @@ struct NoteDetailView: View {
     @State private var playError: String?
     @State private var audioBytes: Int = 0
     @State private var isReprocessing = false
+    @State private var remoteAvailable = RemoteProcessingSettings.load().connection != nil
     @State private var isBuildingPoster = false
     @State private var statusMessage: String?
     @State private var sharePayload: SharePayload?
@@ -29,7 +30,7 @@ struct NoteDetailView: View {
                     LabeledContent("Summary", value: meta.summaryStatus.rawValue)
                     LabeledContent("Poster", value: meta.briefStatus.rawValue)
                     if meta.audioOnlyExport {
-                        Text("Imported as audio-only — on-device AI was skipped for cloud/external processing.")
+                        Text("Imported as audio-only — transcription and summary were skipped.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -68,19 +69,31 @@ struct NoteDetailView: View {
             }
 
             Section {
-                Button {
-                    Task { await reprocess() }
-                } label: {
-                    if isReprocessing {
-                        HStack {
-                            ProgressView()
-                            Text("Transcribing…")
+                if remoteAvailable {
+                    // A server is set up: let this one note go either way, whatever the saved mode.
+                    Menu {
+                        Button {
+                            Task { await reprocess(using: .onDevice) }
+                        } label: {
+                            Label("On this iPhone", systemImage: "iphone")
                         }
-                    } else {
-                        Label("Transcribe & summarize", systemImage: "text.bubble")
+                        Button {
+                            Task { await reprocess(using: .remote) }
+                        } label: {
+                            Label("On the remote server", systemImage: "server.rack")
+                        }
+                    } label: {
+                        reprocessLabel
                     }
+                    .disabled(isReprocessing || isBuildingPoster || audioBytes == 0)
+                } else {
+                    Button {
+                        Task { await reprocess() }
+                    } label: {
+                        reprocessLabel
+                    }
+                    .disabled(isReprocessing || isBuildingPoster || audioBytes == 0)
                 }
-                .disabled(isReprocessing || isBuildingPoster || audioBytes == 0)
 
                 Button {
                     Task { await rebuildPoster() }
@@ -215,25 +228,39 @@ struct NoteDetailView: View {
         meta = loaded
     }
 
-    private func reprocess() async {
+    @ViewBuilder
+    private var reprocessLabel: some View {
+        if isReprocessing {
+            HStack {
+                ProgressView()
+                Text("Transcribing…")
+            }
+        } else {
+            Label("Transcribe & summarize", systemImage: "text.bubble")
+        }
+    }
+
+    /// `engine` picks where this one run happens; nil follows the mode in Settings.
+    private func reprocess(using engine: EngineOverride? = nil) async {
         isReprocessing = true
-        statusMessage = "Running \(PipelineEngines.transcriberTitle)…"
+        statusMessage = "Running \(PipelineEngines.transcriberTitle(override: engine))…"
         defer { isReprocessing = false }
         do {
             var settings = ExportSettings.load()
             settings.autoExportEnabled = UserDefaults.standard.bool(forKey: "export.autoEnabled")
             let pipeline = NotePipeline(
                 store: NoteStore(),
-                transcriber: PipelineEngines.transcriber(force: true),
-                summarizer: PipelineEngines.summarizer(force: true),
-                exporter: Exporter(settings: settings)
+                transcriber: PipelineEngines.transcriber(override: engine, force: true),
+                summarizer: PipelineEngines.summarizer(override: engine, force: true),
+                exporter: Exporter(settings: settings),
+                options: PipelineOptions.load()
             )
             let updated = try await pipeline.reprocess(noteId: noteId)
             meta = updated
             load()
             statusMessage = updated.briefStatus == .done
                 ? "Transcript, summary, and poster updated"
-                : "Transcript updated (poster \(updated.briefStatus.rawValue))"
+                : "Transcript updated (summary \(updated.summaryStatus.rawValue), poster \(updated.briefStatus.rawValue))"
         } catch {
             statusMessage = error.localizedDescription
         }

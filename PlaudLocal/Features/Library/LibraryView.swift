@@ -151,7 +151,8 @@ struct LibraryView: View {
                 store: store,
                 transcriber: PipelineEngines.transcriber(),
                 summarizer: PipelineEngines.summarizer(),
-                exporter: Exporter(settings: settings)
+                exporter: Exporter(settings: settings),
+                options: PipelineOptions.load()
             )
             for note in pending {
                 if Task.isCancelled { break }

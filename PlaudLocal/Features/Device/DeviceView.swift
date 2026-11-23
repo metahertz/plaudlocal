@@ -486,7 +486,8 @@ struct DeviceView: View {
             store: NoteStore(),
             transcriber: PipelineEngines.transcriber(),
             summarizer: PipelineEngines.summarizer(),
-            exporter: Exporter(settings: settings)
+            exporter: Exporter(settings: settings),
+            options: PipelineOptions.load()
         )
     }
 

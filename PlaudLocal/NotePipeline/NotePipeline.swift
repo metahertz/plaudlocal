@@ -11,6 +11,8 @@ struct NotePipeline {
         guard let data = KeyVault().load(account: "plaud.rsaPrivatePEM") else { return nil }
         return String(data: data, encoding: .utf8)
     }
+    /// Optional steps; the defaults run everything.
+    var options = PipelineOptions()
 
     /// Decrypt and add to Library only (no ASR yet). Safe to call for every download
     /// before kicking off slow transcription so batch imports aren't blocked on the first note.
@@ -101,7 +103,12 @@ struct NotePipeline {
         let summaryDone = meta.summaryStatus == .done
             && PipelineRecovery.isUsableSummary(summaryText)
 
-        if !summaryDone {
+        if !summaryDone, !options.summarize {
+            if meta.summaryStatus != .skipped {
+                try markSummaryTurnedOff(&meta)
+            }
+            summaryText = nil
+        } else if !summaryDone {
             meta.summaryStatus = .running
             try store.updateMetadata(meta)
             let result = await summarizeWithRetry(transcript: transcript)
@@ -119,11 +126,16 @@ struct NotePipeline {
         }
 
         if meta.briefStatus != .done || meta.posterFileName == nil {
-            meta = try await buildBriefAndPoster(
-                meta: meta,
-                transcript: transcript,
-                summary: summaryText
-            )
+            if options.buildPoster {
+                meta = try await buildBriefAndPoster(
+                    meta: meta,
+                    transcript: transcript,
+                    summary: summaryText
+                )
+            } else if meta.briefStatus != .skipped {
+                meta.briefStatus = .skipped
+                try store.updateMetadata(meta)
+            }
         }
 
         if exporter.settings.autoExportEnabled, meta.exportStatus != .done {
@@ -242,25 +254,45 @@ struct NotePipeline {
             try store.updateMetadata(meta)
 
             var summaryText: String?
-            meta.summaryStatus = .running
-            try store.updateMetadata(meta)
-            switch await summarizeWithRetry(transcript: transcript) {
-            case let .text(summary):
-                try store.writeSummary(noteId: meta.id, text: summary)
-                summaryText = summary
+            if options.summarize {
+                meta.summaryStatus = .running
+                try store.updateMetadata(meta)
+                switch await summarizeWithRetry(transcript: transcript) {
+                case let .text(summary):
+                    try store.writeSummary(noteId: meta.id, text: summary)
+                    summaryText = summary
+                    meta.summaryStatus = .done
+                case let .unavailable(reason):
+                    try store.writeSummary(noteId: meta.id, text: "Summary unavailable: \(reason)")
+                    meta.summaryStatus = .skipped
+                }
+                try store.updateMetadata(meta)
+            } else if PipelineRecovery.isUsableSummary(store.readSummary(noteId: meta.id)) {
+                // Summaries are off: keep the one this note already has rather than erasing it.
+                summaryText = store.readSummary(noteId: meta.id)
                 meta.summaryStatus = .done
-            case let .unavailable(reason):
-                try store.writeSummary(noteId: meta.id, text: "Summary unavailable: \(reason)")
-                meta.summaryStatus = .skipped
+                try store.updateMetadata(meta)
+            } else {
+                try markSummaryTurnedOff(&meta)
             }
-            try store.updateMetadata(meta)
 
+            guard options.buildPoster else {
+                meta.briefStatus = meta.posterFileName == nil ? .skipped : .done
+                try store.updateMetadata(meta)
+                return meta
+            }
             return try await buildBriefAndPoster(meta: meta, transcript: transcript, summary: summaryText)
         } catch {
             meta.transcriptStatus = .failed
             try? store.updateMetadata(meta)
             throw error
         }
+    }
+
+    private func markSummaryTurnedOff(_ meta: inout NoteMetadata) throws {
+        try store.writeSummary(noteId: meta.id, text: "Summary unavailable: \(PipelineOptions.summaryOffReason)")
+        meta.summaryStatus = .skipped
+        try store.updateMetadata(meta)
     }
 
     /// One opaque `.unavailable` with a retryable reason gets a second full pass after backoff.

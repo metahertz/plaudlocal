@@ -35,7 +35,13 @@ xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPh
 
 ## Remote processing (optional)
 
-By default everything runs on the iPhone. If you run the Plaud Remote server from `server/`, the app can instead upload each recording to it for transcription and summarization with models you host or subscribe to. Turn it on under Settings → Remote processing with the server's address and API token. The transcript and summary come back into the note; the brief, poster and export still run on the phone. With "Use on-device AI if the server fails" on, a recording is processed locally when the server can't do it.
+Settings → Processing chooses what happens to each new recording:
+
+- **On this iPhone** (default): transcription and summary run on-device.
+- **Remote server**: the audio is uploaded to a Plaud Remote server (see `server/`), which runs models you host or subscribe to and returns the text. The app connects over HTTPS only. Transcription and summary can each be kept on the iPhone, and "Use on-device AI if the server fails" processes a recording locally when the server can't.
+- **Audio only**: no AI; the decrypted audio is exported for your own tools.
+
+In either AI mode, "Summarize" and "Build brief and poster" switch those steps off. The brief, poster and export always run on the phone. Once a server is set up, "Transcribe & summarize" on a note lets you send that one note to the server or keep it on the iPhone, whatever the mode.
 
 ## Current limits
 

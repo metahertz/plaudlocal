@@ -90,6 +90,11 @@ class WorkerPool:
             self.store.update_job(job_id, transcript=transcript, status="summarizing")
             log.info("Job %s transcribed (%d characters)", job_id, len(transcript))
 
+        if not job["want_summary"]:
+            # The app asked for the transcript only (it summarizes on-device, or not at all).
+            self._finish(job, settings, summary=None, summary_error=None)
+            return
+
         summary_config = settings["summarization"]
         if not Store.is_configured(summary_config):
             self._finish(job, settings, summary=None, summary_error=SUMMARY_NOT_CONFIGURED)

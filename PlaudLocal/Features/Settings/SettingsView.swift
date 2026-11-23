@@ -12,6 +12,10 @@ struct SettingsView: View {
     @AppStorage(RemoteProcessingSettings.enabledKey) private var remoteEnabled = false
     @AppStorage(RemoteProcessingSettings.serverURLKey) private var remoteURL = ""
     @AppStorage(RemoteProcessingSettings.fallbackKey) private var remoteFallback = true
+    @AppStorage(RemoteProcessingSettings.transcribeKey) private var remoteTranscribe = true
+    @AppStorage(RemoteProcessingSettings.summarizeKey) private var remoteSummarize = true
+    @AppStorage(PipelineOptions.summarizeKey) private var summarize = true
+    @AppStorage(PipelineOptions.posterKey) private var buildPoster = true
     @State private var remoteToken = ""
     @State private var remoteTokenSaved = KeyVault().load(account: RemoteProcessingSettings.tokenAccount) != nil
     @State private var remoteStatus = ""
@@ -25,6 +29,25 @@ struct SettingsView: View {
             get: { TranscriptionEngine(rawValue: asrEngineRaw) ?? .apple },
             set: { asrEngineRaw = $0.rawValue }
         )
+    }
+
+    private var mode: Binding<ProcessingMode> {
+        Binding(
+            get: { audioOnlyMode ? .audioOnly : (remoteEnabled ? .remote : .onDevice) },
+            set: {
+                audioOnlyMode = $0 == .audioOnly
+                remoteEnabled = $0 == .remote
+            }
+        )
+    }
+
+    /// On-device engines are in play unless every AI step is handed to the server with no fallback.
+    private var usesOnDeviceAI: Bool {
+        switch mode.wrappedValue {
+        case .onDevice: return true
+        case .audioOnly: return false
+        case .remote: return remoteFallback || !remoteTranscribe || (summarize && !remoteSummarize)
+        }
     }
 
     var body: some View {
@@ -60,31 +83,30 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Picker("Engine", selection: asrEngine) {
-                        ForEach(TranscriptionEngine.allCases) { engine in
-                            Text(engine.title).tag(engine)
+                    Picker("Process recordings", selection: mode) {
+                        ForEach(ProcessingMode.allCases) { option in
+                            Text(option.title).tag(option)
                         }
                     }
-                    Text(asrEngine.wrappedValue.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if mode.wrappedValue != .audioOnly {
+                        Toggle("Summarize", isOn: $summarize)
+                        Toggle("Build brief and poster", isOn: $buildPoster)
+                    }
                 } header: {
-                    Text("Transcription")
+                    Text("Processing")
                 } footer: {
-                    Text(remoteEnabled
-                        ? "Used when the remote server can't process a recording. Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it."
-                        : "Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it.")
+                    Text(mode.wrappedValue == .audioOnly
+                        ? mode.wrappedValue.detail
+                        : mode.wrappedValue.detail + " The brief also names the note; without it a note keeps its recording date as its title.")
                 }
 
-                Section {
-                    Toggle("Process on a remote server", isOn: $remoteEnabled)
-                    if remoteEnabled {
-                        TextField("Server address, e.g. http://192.168.1.20:8080", text: $remoteURL)
+                if mode.wrappedValue == .remote {
+                    Section {
+                        TextField("Server address, e.g. https://plaud.example.com", text: $remoteURL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .keyboardType(.URL)
                         SecureField(remoteTokenSaved ? "API token (saved)" : "API token", text: $remoteToken)
-                        Toggle("Use on-device AI if the server fails", isOn: $remoteFallback)
                         Button(remoteTesting ? "Testing…" : "Save and test connection") {
                             Task { await testRemote() }
                         }
@@ -92,11 +114,34 @@ struct SettingsView: View {
                         if !remoteStatus.isEmpty {
                             Text(remoteStatus).font(.footnote)
                         }
+                        Toggle("Transcribe on the server", isOn: $remoteTranscribe)
+                        Toggle("Summarize on the server", isOn: $remoteSummarize)
+                            .disabled(!summarize)
+                        Toggle("Use on-device AI if the server fails", isOn: $remoteFallback)
+                    } header: {
+                        Text("Remote server")
+                    } footer: {
+                        Text("The address and token are shown on the server's web page. The server must be reachable over HTTPS with a certificate this iPhone trusts. A step you switch off here runs on this iPhone instead.")
                     }
-                } header: {
-                    Text("Remote processing")
-                } footer: {
-                    Text("Sends each recording's audio to your own Plaud Remote server, which transcribes and summarizes it with the models you configured there, then returns the text to this iPhone. The address and token are shown in the server's web page. Plain http:// only works for servers on your local network.")
+                }
+
+                if usesOnDeviceAI {
+                    Section {
+                        Picker("Transcription engine", selection: asrEngine) {
+                            ForEach(TranscriptionEngine.allCases) { engine in
+                                Text(engine.title).tag(engine)
+                            }
+                        }
+                        Text(asrEngine.wrappedValue.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } header: {
+                        Text("On-device AI")
+                    } footer: {
+                        Text(mode.wrappedValue == .remote
+                            ? "Used for the steps that are not sent to the server, and when the server fails. Summaries use Apple Intelligence where available."
+                            : "Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it. Summaries use Apple Intelligence where available.")
+                    }
                 }
 
                 Section {
@@ -108,7 +153,6 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Toggle("Upload audio only (skip on-device AI)", isOn: $audioOnlyMode)
                     Toggle("Auto-export after processing", isOn: $autoExport)
                         .disabled(audioOnlyMode)
                     TextField("Nextcloud WebDAV base URL", text: $nextcloudURL)
@@ -129,8 +173,8 @@ struct SettingsView: View {
                     Text("Export")
                 } footer: {
                     Text(audioOnlyMode
-                        ? "Downloads decrypt and upload audio.ogg (+ metadata) to Nextcloud without on-device transcription or summarization — use your own larger AI tools. You can still run Transcribe & summarize later from a note. Configure Nextcloud below."
-                        : "After on-device processing, optionally copy the note package to Nextcloud via WebDAV.")
+                        ? "Audio-only mode always exports: each recording's audio.ogg and metadata go to Nextcloud as soon as it is downloaded."
+                        : "After processing, optionally copy the note package to Nextcloud via WebDAV.")
                 }
                 if !status.isEmpty {
                     Section { Text(status).font(.footnote) }
@@ -159,10 +203,10 @@ struct SettingsView: View {
         }
         let settings = RemoteProcessingSettings.load()
         guard settings.serverURL != nil else {
-            remoteStatus = "Enter the server address, starting with http:// or https://"
+            remoteStatus = "Enter the server address, starting with https://"
             return
         }
-        guard let client = settings.client else {
+        guard let client = settings.connection else {
             remoteStatus = "Enter the API token from the server's web page"
             return
         }

@@ -53,12 +53,14 @@
 		DA8DED875FF8F7472BE8E78C /* PipelineRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4150268987F5E62106BA36DE /* PipelineRecovery.swift */; };
 		DBDC677D92C260D6E9B44E2B /* DeviceSessionModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */; };
 		DDEE3C4CC603E6144DFA4692 /* WebDAVClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B43D6AACE6C66BEC2FAA207 /* WebDAVClientTests.swift */; };
+		617BC71D72A605BE238E09C0 /* ProcessingSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F084EDD428F496DDEF72E52B /* ProcessingSettingsTests.swift */; };
 		24E655341E10B2EBF98D8B44 /* RemoteProcessingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EDBEF9CE8F9354EF4EDB479 /* RemoteProcessingTests.swift */; };
 		E5A437C9228006AAE9F00ACB /* PlaudAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60BE1B591435772E12DF5B3A /* PlaudAuthService.swift */; };
 		EECBD97D324510E7769C8E55 /* Transcriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D1ADAF86BC71E404D640166 /* Transcriber.swift */; };
 		F10EDAAFA1BEE6EA8AE57620 /* ExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61D11ACD4F90A37D96C3FFE8 /* ExporterTests.swift */; };
 		F340A958297FF7BF0DE11C06 /* BriefBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79EF77EFDB4BE75819AFE360 /* BriefBuilder.swift */; };
 		F688F02A0443961486643451 /* TranscriptionSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2291CAC263632DD8934F48DA /* TranscriptionSettings.swift */; };
+		AC4F1A340633AA6B4FAA5D7A /* ProcessingSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C331DD128C639587167BD0E6 /* ProcessingSettings.swift */; };
 		493BC1AE357602F7AD1EC9EB /* RemoteProcessing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DBA2389F497A858BA3A55A7 /* RemoteProcessing.swift */; };
 		F8FA575BDBD0A9AAB98E418B /* Summarizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 141B14950618AC0DCD9BF5BD /* Summarizer.swift */; };
 		FF6B42A975631D032F4354F4 /* TranscriptChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E609022EB1522B3FC8622C4 /* TranscriptChunkerTests.swift */; };
@@ -80,6 +82,7 @@
 		0DF1AD235592205C748FF690 /* NotePipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePipelineTests.swift; sourceTree = "<group>"; };
 		141B14950618AC0DCD9BF5BD /* Summarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Summarizer.swift; sourceTree = "<group>"; };
 		2291CAC263632DD8934F48DA /* TranscriptionSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionSettings.swift; sourceTree = "<group>"; };
+		C331DD128C639587167BD0E6 /* ProcessingSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingSettings.swift; sourceTree = "<group>"; };
 		6DBA2389F497A858BA3A55A7 /* RemoteProcessing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteProcessing.swift; sourceTree = "<group>"; };
 		254742BEEA92FE252F237351 /* MeetingPosterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingPosterView.swift; sourceTree = "<group>"; };
 		29131517CC980DF9E8364AD8 /* ProtocolCodecTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolCodecTests.swift; sourceTree = "<group>"; };
@@ -94,6 +97,7 @@
 		461FD66F129D345277641E79 /* DeviceSessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSessionModelTests.swift; sourceTree = "<group>"; };
 		4AED2A50E0F3AB7CD2BD9D66 /* WiFiFastTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiFastTransfer.swift; sourceTree = "<group>"; };
 		4B43D6AACE6C66BEC2FAA207 /* WebDAVClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVClientTests.swift; sourceTree = "<group>"; };
+		F084EDD428F496DDEF72E52B /* ProcessingSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingSettingsTests.swift; sourceTree = "<group>"; };
 		5EDBEF9CE8F9354EF4EDB479 /* RemoteProcessingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteProcessingTests.swift; sourceTree = "<group>"; };
 		564AD5AE9B1717DA3F69D144 /* FileDecryptorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDecryptorTests.swift; sourceTree = "<group>"; };
 		60BE1B591435772E12DF5B3A /* PlaudAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaudAuthService.swift; sourceTree = "<group>"; };
@@ -181,6 +185,7 @@
 				D737CE62F747F7F0ED622749 /* SummarizerTests.swift */,
 				2E609022EB1522B3FC8622C4 /* TranscriptChunkerTests.swift */,
 				4B43D6AACE6C66BEC2FAA207 /* WebDAVClientTests.swift */,
+				F084EDD428F496DDEF72E52B /* ProcessingSettingsTests.swift */,
 				5EDBEF9CE8F9354EF4EDB479 /* RemoteProcessingTests.swift */,
 				8632A4DDDDC4627544AB33D5 /* WiFiFrameCodecTests.swift */,
 			);
@@ -276,6 +281,7 @@
 				0D1ADAF86BC71E404D640166 /* Transcriber.swift */,
 				D13B1982419B403434ACC6D8 /* TranscriptChunker.swift */,
 				2291CAC263632DD8934F48DA /* TranscriptionSettings.swift */,
+				C331DD128C639587167BD0E6 /* ProcessingSettings.swift */,
 				6DBA2389F497A858BA3A55A7 /* RemoteProcessing.swift */,
 				86035177B283822D5BB5279E /* WebDAVClient.swift */,
 			);
@@ -418,6 +424,7 @@
 				EECBD97D324510E7769C8E55 /* Transcriber.swift in Sources */,
 				8221FAF948F262213FDBAF5D /* TranscriptChunker.swift in Sources */,
 				F688F02A0443961486643451 /* TranscriptionSettings.swift in Sources */,
+				AC4F1A340633AA6B4FAA5D7A /* ProcessingSettings.swift in Sources */,
 				493BC1AE357602F7AD1EC9EB /* RemoteProcessing.swift in Sources */,
 				B6BB0E17BF27FB9F9FB4625E /* WebDAVClient.swift in Sources */,
 				A397C8D8DC9CE97035F2795C /* WiFiFastTransfer.swift in Sources */,
@@ -448,6 +455,7 @@
 				01053725DACC05E11BC94414 /* SummarizerTests.swift in Sources */,
 				FF6B42A975631D032F4354F4 /* TranscriptChunkerTests.swift in Sources */,
 				DDEE3C4CC603E6144DFA4692 /* WebDAVClientTests.swift in Sources */,
+				617BC71D72A605BE238E09C0 /* ProcessingSettingsTests.swift in Sources */,
 				24E655341E10B2EBF98D8B44 /* RemoteProcessingTests.swift in Sources */,
 				17A9690A6348F832FE13BB0A /* WiFiFrameCodecTests.swift in Sources */,
 			);

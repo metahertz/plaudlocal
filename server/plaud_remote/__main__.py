@@ -6,6 +6,7 @@ import logging
 import os
 import secrets
 import signal
+import ssl
 import sys
 import threading
 
@@ -55,6 +56,14 @@ def main() -> int:
         (os.environ.get("PLAUD_REMOTE_HOST", "0.0.0.0"), int(os.environ.get("PLAUD_REMOTE_PORT", "8080"))),
         app,
     )
+    cert, key = os.environ.get("PLAUD_REMOTE_TLS_CERT"), os.environ.get("PLAUD_REMOTE_TLS_KEY")
+    if cert and key:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(cert, key)
+        server.socket = context.wrap_socket(server.socket, server_side=True)
+    elif cert or key:
+        raise SystemExit("Set both PLAUD_REMOTE_TLS_CERT and PLAUD_REMOTE_TLS_KEY, or neither")
     pool.start()
 
     def shutdown(*_: object) -> None:
@@ -63,7 +72,11 @@ def main() -> int:
     signal.signal(signal.SIGTERM, shutdown)
     signal.signal(signal.SIGINT, shutdown)
     host, port = server.server_address[:2]
-    log.info("plaud-remote %s listening on %s:%s", __version__, host, port)
+    log.info(
+        "plaud-remote %s listening on %s://%s:%s", __version__, "https" if cert else "http", host, port
+    )
+    if not cert:
+        log.info("Serving plain HTTP: the app only connects over HTTPS, so put a TLS proxy in front")
     try:
         server.serve_forever()
     finally:
