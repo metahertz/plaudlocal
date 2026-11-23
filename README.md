@@ -1,6 +1,6 @@
 # Plaud Local
 
-Local-first iPhone companion for Plaud Note Pro: BLE download (protocol 20), Wi-Fi Fast Transfer, on-device decrypt, on-device transcription (Apple Speech or WhisperKit), optional Apple Intelligence summaries, meeting briefs and posters, export to Files and Nextcloud WebDAV.
+Local-first iPhone companion for Plaud Note Pro: BLE download (protocol 20), Wi-Fi Fast Transfer, on-device decrypt, on-device transcription (Apple Speech or WhisperKit), optional Apple Intelligence summaries, meeting briefs and posters, export to Files and Nextcloud WebDAV. Optionally, recordings can instead be sent to a self-hosted server for transcription and summarization with larger models.
 
 Not affiliated with Plaud. For personal interoperability with your own device and account.
 
@@ -26,6 +26,13 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
+The optional server has its own tests, which need only Python:
+
+```bash
+cd server
+python -m unittest discover -s tests -v
+```
+
 ## Architecture
 
 - `DeviceSession` — Keychain, BLE, protocol codec, session crypto, Wi-Fi Fast Transfer, PLAUD.AI decrypt
@@ -33,7 +40,7 @@ xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPh
 - `Features` — SwiftUI screens: Device, Library, Note, Settings
 - `server/` — optional self-hosted Plaud Remote server (Docker); see [server/README.md](server/README.md)
 
-## Remote processing (optional)
+## Processing modes
 
 Settings → Processing chooses what happens to each new recording:
 
@@ -50,6 +57,9 @@ In either AI mode, "Summarize" and "Build brief and poster" switch those steps o
 - Foundation Models summarization returns `.unavailable` when Apple Intelligence is missing
 - Wi-Fi Fast Transfer needs a manual join: the app shows the Note Pro hotspot's SSID and password, and you join it in Settings (automatic joining needs the Hotspot Configuration entitlement, which is not enabled)
 - Deleting recordings from the device is opt-in ("Delete from device after download")
+- Remote server: the app collects results only while it is open; the server keeps working, and the app picks the result up the next time it processes that note
+- Remote server: the address must be `https://` with a certificate the iPhone trusts (a self-signed one needs its root installed and trusted on the phone)
+- Remote server: the app and server are covered by unit tests on each side but have not yet been run against each other
 
 ## Manual device checklist
 
@@ -59,6 +69,9 @@ In either AI mode, "Summarize" and "Build brief and poster" switch those steps o
 4. Confirm transcript file is written
 5. On Apple Intelligence hardware: confirm a summary is written; otherwise skipped badge
 6. Configure Files folder / Nextcloud; enable auto-export; confirm package layout
+7. Remote server (optional): run `server/`, set up its endpoints, and enter its address and token under Settings → Processing → Remote server; "Save and test connection" should report both stages ready
+8. In Remote server mode, download a recording; confirm the job appears on the server's web page and the transcript and summary land in the note
+9. Stop the server and download another; with the fallback on, confirm the note is processed on-device instead
 
 ## License
 
