@@ -15,6 +15,9 @@ enum PipelineRetry {
 
     static func classify(_ error: Error) -> Kind {
         if error is CancellationError { return .permanent }
+        if let remote = error as? RemoteProcessingError {
+            return remote.isTransient ? .retryable : .permanent
+        }
         if let summarizer = error as? SummarizerError {
             switch summarizer {
             case .timedOut: return .retryable

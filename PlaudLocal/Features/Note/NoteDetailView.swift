@@ -217,15 +217,15 @@ struct NoteDetailView: View {
 
     private func reprocess() async {
         isReprocessing = true
-        statusMessage = "Running \(TranscriptionSettings.engine.title)…"
+        statusMessage = "Running \(PipelineEngines.transcriberTitle)…"
         defer { isReprocessing = false }
         do {
             var settings = ExportSettings.load()
             settings.autoExportEnabled = UserDefaults.standard.bool(forKey: "export.autoEnabled")
             let pipeline = NotePipeline(
                 store: NoteStore(),
-                transcriber: Transcriber(engine: TranscriptionSettings.engine),
-                summarizer: Summarizer(),
+                transcriber: PipelineEngines.transcriber(force: true),
+                summarizer: PipelineEngines.summarizer(force: true),
                 exporter: Exporter(settings: settings)
             )
             let updated = try await pipeline.reprocess(noteId: noteId)
@@ -248,8 +248,8 @@ struct NoteDetailView: View {
             settings.autoExportEnabled = false
             let pipeline = NotePipeline(
                 store: NoteStore(),
-                transcriber: Transcriber(engine: TranscriptionSettings.engine),
-                summarizer: Summarizer(),
+                transcriber: PipelineEngines.transcriber(),
+                summarizer: PipelineEngines.summarizer(),
                 exporter: Exporter(settings: settings)
             )
             let updated = try await pipeline.rebuildPoster(noteId: noteId)

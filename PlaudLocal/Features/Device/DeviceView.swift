@@ -484,8 +484,8 @@ struct DeviceView: View {
         settings.autoExportEnabled = UserDefaults.standard.bool(forKey: "export.autoEnabled")
         return NotePipeline(
             store: NoteStore(),
-            transcriber: Transcriber(engine: TranscriptionSettings.engine),
-            summarizer: Summarizer(),
+            transcriber: PipelineEngines.transcriber(),
+            summarizer: PipelineEngines.summarizer(),
             exporter: Exporter(settings: settings)
         )
     }

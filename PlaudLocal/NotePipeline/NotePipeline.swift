@@ -216,7 +216,7 @@ struct NotePipeline {
     }
 
     /// Re-run transcription, summary, brief, and poster on an existing library note.
-    /// Manual reprocess always runs on-device AI, even if the note was imported as audio-only.
+    /// Manual reprocess always runs transcription and summary, even if the note was imported as audio-only.
     func reprocess(noteId: String) async throws -> NoteMetadata {
         guard var meta = try store.allNotes().first(where: { $0.id == noteId }) else {
             throw NoteStoreError.notFound

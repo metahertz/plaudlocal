@@ -9,6 +9,13 @@ struct SettingsView: View {
     @AppStorage(ExportSettings.audioOnlyModeKey) private var audioOnlyMode = false
     @AppStorage(TranscriptionSettings.engineKey) private var asrEngineRaw = TranscriptionEngine.apple.rawValue
     @AppStorage(DeviceSessionModel.keepAwakeDuringDownloadKey) private var keepAwakeDuringDownload = false
+    @AppStorage(RemoteProcessingSettings.enabledKey) private var remoteEnabled = false
+    @AppStorage(RemoteProcessingSettings.serverURLKey) private var remoteURL = ""
+    @AppStorage(RemoteProcessingSettings.fallbackKey) private var remoteFallback = true
+    @State private var remoteToken = ""
+    @State private var remoteTokenSaved = KeyVault().load(account: RemoteProcessingSettings.tokenAccount) != nil
+    @State private var remoteStatus = ""
+    @State private var remoteTesting = false
     @State private var nextcloudPassword = ""
     @State private var status = ""
     @State private var showLogin = false
@@ -64,7 +71,32 @@ struct SettingsView: View {
                 } header: {
                     Text("Transcription")
                 } footer: {
-                    Text("Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it.")
+                    Text(remoteEnabled
+                        ? "Used when the remote server can't process a recording. Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it."
+                        : "Apple Speech is on-device via SpeechAnalyzer. WhisperKit downloads a Core ML model the first time you use it.")
+                }
+
+                Section {
+                    Toggle("Process on a remote server", isOn: $remoteEnabled)
+                    if remoteEnabled {
+                        TextField("Server address, e.g. http://192.168.1.20:8080", text: $remoteURL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                        SecureField(remoteTokenSaved ? "API token (saved)" : "API token", text: $remoteToken)
+                        Toggle("Use on-device AI if the server fails", isOn: $remoteFallback)
+                        Button(remoteTesting ? "Testing…" : "Save and test connection") {
+                            Task { await testRemote() }
+                        }
+                        .disabled(remoteTesting)
+                        if !remoteStatus.isEmpty {
+                            Text(remoteStatus).font(.footnote)
+                        }
+                    }
+                } header: {
+                    Text("Remote processing")
+                } footer: {
+                    Text("Sends each recording's audio to your own Plaud Remote server, which transcribes and summarizes it with the models you configured there, then returns the text to this iPhone. The address and token are shown in the server's web page. Plain http:// only works for servers on your local network.")
                 }
 
                 Section {
@@ -108,6 +140,39 @@ struct SettingsView: View {
             .sheet(isPresented: $showLogin) {
                 PlaudLoginView(auth: auth)
             }
+        }
+    }
+
+    private func testRemote() async {
+        remoteTesting = true
+        defer { remoteTesting = false }
+        let enteredToken = remoteToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !enteredToken.isEmpty {
+            do {
+                try KeyVault().save(Data(enteredToken.utf8), account: RemoteProcessingSettings.tokenAccount)
+                remoteTokenSaved = true
+                remoteToken = ""
+            } catch {
+                remoteStatus = "Could not save the token to Keychain"
+                return
+            }
+        }
+        let settings = RemoteProcessingSettings.load()
+        guard settings.serverURL != nil else {
+            remoteStatus = "Enter the server address, starting with http:// or https://"
+            return
+        }
+        guard let client = settings.client else {
+            remoteStatus = "Enter the API token from the server's web page"
+            return
+        }
+        do {
+            let health = try await client.health()
+            let transcription = health.transcription ? "transcription ready" : "transcription not set up"
+            let summarization = health.summarization ? "summarization ready" : "summarization not set up"
+            remoteStatus = "Connected: \(transcription), \(summarization)"
+        } catch {
+            remoteStatus = error.localizedDescription
         }
     }
 

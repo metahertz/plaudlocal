@@ -26,8 +26,13 @@
 	<string>Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Plaud Local transcribes your Note Pro recordings on this iPhone.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Plaud Local talks to your Note Pro over its local Wi‑Fi hotspot during Fast Transfer.</string>
+	<string>Plaud Local talks to your Note Pro over its local Wi‑Fi hotspot during Fast Transfer, and to a remote processing server on your network if you set one up.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

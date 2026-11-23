@@ -149,8 +149,8 @@ struct LibraryView: View {
             settings.autoExportEnabled = UserDefaults.standard.bool(forKey: "export.autoEnabled")
             let pipeline = NotePipeline(
                 store: store,
-                transcriber: Transcriber(engine: TranscriptionSettings.engine),
-                summarizer: Summarizer(),
+                transcriber: PipelineEngines.transcriber(),
+                summarizer: PipelineEngines.summarizer(),
                 exporter: Exporter(settings: settings)
             )
             for note in pending {

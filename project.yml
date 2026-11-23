@@ -43,7 +43,9 @@ targets:
         NSBluetoothAlwaysUsageDescription: Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.
         NSBluetoothPeripheralUsageDescription: Plaud Local connects to your Plaud Note Pro over Bluetooth to download recordings you own.
         NSSpeechRecognitionUsageDescription: Plaud Local transcribes your Note Pro recordings on this iPhone.
-        NSLocalNetworkUsageDescription: Plaud Local talks to your Note Pro over its local Wi‑Fi hotspot during Fast Transfer.
+        NSLocalNetworkUsageDescription: Plaud Local talks to your Note Pro over its local Wi‑Fi hotspot during Fast Transfer, and to a remote processing server on your network if you set one up.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
   PlaudLocalTests:
     type: bundle.unit-test
     platform: iOS

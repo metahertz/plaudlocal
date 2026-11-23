@@ -31,6 +31,11 @@ xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPh
 - `DeviceSession` — Keychain, BLE, protocol codec, session crypto, Wi-Fi Fast Transfer, PLAUD.AI decrypt
 - `NotePipeline` — note store, transcriber, summarizer, brief and poster builder, Files/WebDAV export
 - `Features` — SwiftUI screens: Device, Library, Note, Settings
+- `server/` — optional self-hosted Plaud Remote server (Docker); see [server/README.md](server/README.md)
+
+## Remote processing (optional)
+
+By default everything runs on the iPhone. If you run the Plaud Remote server from `server/`, the app can instead upload each recording to it for transcription and summarization with models you host or subscribe to. Turn it on under Settings → Remote processing with the server's address and API token. The transcript and summary come back into the note; the brief, poster and export still run on the phone. With "Use on-device AI if the server fails" on, a recording is processed locally when the server can't do it.
 
 ## Current limits
 
