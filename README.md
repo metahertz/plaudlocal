@@ -1,13 +1,13 @@
 # Plaud Local
 
-Local-first iOS companion for Plaud Note Pro: BLE download (protocol 20), on-device decrypt, transcription pipeline, optional Apple Intelligence summarization, export to Files and Nextcloud WebDAV.
+Local-first iPhone companion for Plaud Note Pro: BLE download (protocol 20), Wi-Fi Fast Transfer, on-device decrypt, on-device transcription (Apple Speech or WhisperKit), optional Apple Intelligence summaries, meeting briefs and posters, export to Files and Nextcloud WebDAV.
 
 Not affiliated with Plaud. For personal interoperability with your own device and account.
 
 ## Requirements
 
-- Xcode 16+ (tested with Xcode 27 / iOS 17 deployment target)
-- Physical iPhone for BLE (simulator covers unit tests only)
+- Xcode 27+ (the pinned Swift packages need Swift tools 6.4; iOS 17 deployment target)
+- Physical iPhone for BLE (simulator covers unit tests only); the app is iPhone-only, portrait
 - Note Pro on **protocol 20** firmware
 - One-time Plaud web login to fetch SN signature + E2EE RSA key
 
@@ -28,15 +28,17 @@ xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPh
 
 ## Architecture
 
-- `DeviceSession` — Keychain, BLE, protocol codec, session crypto, PLAUD.AI decrypt
-- `NotePipeline` — note store, transcriber, summarizer, Files/WebDAV export
+- `DeviceSession` — Keychain, BLE, protocol codec, session crypto, Wi-Fi Fast Transfer, PLAUD.AI decrypt
+- `NotePipeline` — note store, transcriber, summarizer, brief and poster builder, Files/WebDAV export
+- `Features` — SwiftUI screens: Device, Library, Note, Settings
 
-## Current limits (v1)
+## Current limits
 
 - Protocol 30 (ECC) is detected and refused
-- WhisperKit SPM is not yet linked; `Transcriber` is a file-presence stub until model packaging is wired (pipeline + export still run)
+- Transcription defaults to Apple Speech; WhisperKit is opt-in in Settings and downloads its model on first use
 - Foundation Models summarization returns `.unavailable` when Apple Intelligence is missing
-- Device delete and Wi-Fi fast transfer are out of scope
+- Wi-Fi Fast Transfer needs a manual join: the app shows the Note Pro hotspot's SSID and password, and you join it in Settings (automatic joining needs the Hotspot Configuration entitlement, which is not enabled)
+- Deleting recordings from the device is opt-in ("Delete from device after download")
 
 ## Manual device checklist
 
@@ -44,7 +46,7 @@ xcodebuild test -scheme PlaudLocal -destination 'platform=iOS Simulator,name=iPh
 2. Quit the official Plaud app; wake Note Pro; connect in Plaud Local
 3. Download a short recording; confirm decrypted audio in the note package
 4. Confirm transcript file is written
-5. On Apple Intelligence hardware: summary when implemented; otherwise skipped badge
+5. On Apple Intelligence hardware: confirm a summary is written; otherwise skipped badge
 6. Configure Files folder / Nextcloud; enable auto-export; confirm package layout
 
 ## License
