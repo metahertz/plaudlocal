@@ -78,7 +78,10 @@ Behaviour worth knowing:
 
 - **Retries**: failed model calls that look temporary (timeouts, HTTP 429/5xx)
   are retried with a growing delay, up to the configured number of attempts.
-  A restart re-queues whatever was in progress.
+  A restart re-queues whatever was in progress without using up an attempt.
+  A job that has been in progress at three restarts is failed instead, since it
+  is probably what is stopping the server (for example, running out of memory on
+  a very large recording). Retry in the web UI gives it a fresh start.
 - **Summary failures don't lose the transcript**: the job finishes with the
   transcript and a reason, and the app falls back to on-device summarization.
 - **No duplicate work**: uploading the same audio again returns the existing

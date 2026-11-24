@@ -26,6 +26,7 @@ from unittest import mock
 
 from plaud_remote import providers
 from plaud_remote.__main__ import build
+from plaud_remote.store import MAX_INTERRUPTIONS
 from plaud_remote.web import Handler, Server
 from plaud_remote.worker import SUMMARY_NOT_CONFIGURED
 
@@ -385,6 +386,26 @@ class RestartTests(unittest.TestCase):
             self.assertEqual(store.requeue_interrupted(), 1)
             again = store.get_job(job["id"])
             self.assertEqual((again["status"], again["attempts"]), ("queued", 0))
+
+    def test_a_job_interrupted_by_every_restart_is_failed_not_retried_forever(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, _, store = build(tmp, admin_password=ADMIN_PASSWORD)
+            self.addCleanup(store.close)
+            job = store.create_job(kind="text", input_hash="h", transcript="words")
+            limit = MAX_INTERRUPTIONS
+            for _ in range(limit - 1):  # the server dies while it works on this job...
+                store.claim_next_job()
+                self.assertEqual(store.requeue_interrupted(), 1)
+                self.assertEqual(store.get_job(job["id"])["status"], "queued")
+            store.claim_next_job()  # ...once more
+            self.assertEqual(store.requeue_interrupted(), 0)
+            failed = store.get_job(job["id"])
+            self.assertEqual(failed["status"], "failed")
+            self.assertIn("server stopped", failed["error"])
+            # Retry in the web UI gives the job a fresh restart allowance.
+            store.retry_job(job["id"])
+            store.claim_next_job()
+            self.assertEqual(store.requeue_interrupted(), 1)
 
     def test_generated_admin_password_is_stored_hashed(self):
         with tempfile.TemporaryDirectory() as tmp:

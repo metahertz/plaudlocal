@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     summary TEXT,
     error TEXT,
     summary_error TEXT,
-    want_summary INTEGER NOT NULL DEFAULT 1
+    want_summary INTEGER NOT NULL DEFAULT 1,
+    interruptions INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs (status, next_attempt_at, created_at);
 CREATE INDEX IF NOT EXISTS jobs_dedupe ON jobs (kind, input_hash, config_hash);
@@ -102,6 +103,10 @@ def verify_password(password: str, stored: str) -> bool:
     return secrets.compare_digest(expected.hex(), digest_hex)
 
 
+# Restarts that may catch one job mid-flight before it is failed; see requeue_interrupted.
+MAX_INTERRUPTIONS = 3
+
+
 class Store:
     """Thread-safe store; each thread gets its own SQLite connection."""
 
@@ -119,6 +124,8 @@ class Store:
             columns = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)")}
             if "want_summary" not in columns:  # databases created before per-job options
                 conn.execute("ALTER TABLE jobs ADD COLUMN want_summary INTEGER NOT NULL DEFAULT 1")
+            if "interruptions" not in columns:  # databases created before the restart limit
+                conn.execute("ALTER TABLE jobs ADD COLUMN interruptions INTEGER NOT NULL DEFAULT 0")
 
     def _conn(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
@@ -303,13 +310,36 @@ class Store:
             return self.get_job(row["id"])
 
     def requeue_interrupted(self) -> int:
-        """Jobs left mid-flight by a restart go back to the queue without losing an attempt."""
+        """Jobs left mid-flight by a restart go back to the queue without losing an attempt.
+
+        A job that was in progress at `MAX_INTERRUPTIONS` restarts is most likely what
+        brought the server down (running out of memory on a very large recording, say), and
+        with `restart: unless-stopped` it would crash the server again forever. Such a job
+        is failed instead, so the jobs behind it can run. The limit is separate from the
+        "attempts per job" setting, which can be 1: an ordinary restart must stay free.
+        """
+        limit = MAX_INTERRUPTIONS
+        now = time.time()
         with self._conn() as conn:
+            conn.execute(
+                "UPDATE jobs SET interruptions = interruptions + 1 "
+                "WHERE status IN ('transcribing', 'summarizing')"
+            )
+            conn.execute(
+                "UPDATE jobs SET status = 'failed', error = ?, updated_at = ? "
+                "WHERE status IN ('transcribing', 'summarizing') AND interruptions >= ?",
+                (
+                    f"The server stopped while processing this job {limit} times; "
+                    "it may be too large for this server",
+                    now,
+                    limit,
+                ),
+            )
             cur = conn.execute(
                 "UPDATE jobs SET status = 'queued', next_attempt_at = 0, "
                 "attempts = MAX(attempts - 1, 0), updated_at = ? "
                 "WHERE status IN ('transcribing', 'summarizing')",
-                (time.time(),),
+                (now,),
             )
             return cur.rowcount
 
@@ -320,7 +350,7 @@ class Store:
         if job["kind"] == "audio" and job["transcript"] is None and not self._audio_exists(job):
             return None
         self.update_job(
-            job_id, status="queued", attempts=0, next_attempt_at=0, error=None,
+            job_id, status="queued", attempts=0, interruptions=0, next_attempt_at=0, error=None,
             summary=None, summary_error=None,
         )
         return self.get_job(job_id)
