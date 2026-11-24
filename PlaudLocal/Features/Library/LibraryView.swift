@@ -134,7 +134,7 @@ struct LibraryView: View {
             HStack(spacing: 8) {
                 statusChip("ASR", note.transcriptStatus)
                 statusChip("Sum", note.summaryStatus)
-                statusChip("Poster", note.briefStatus)
+                statusChip("Brief", note.briefStatus)
                 statusChip("Exp", note.exportStatus)
             }
         }

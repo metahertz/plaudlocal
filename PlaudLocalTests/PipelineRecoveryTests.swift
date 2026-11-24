@@ -83,6 +83,28 @@ final class PipelineRecoveryTests: XCTestCase {
         XCTAssertEqual(try store.allNotes().first { $0.id == meta.id }?.transcriptStatus, .failed)
     }
 
+    func test_an_interrupted_brief_counts_as_done_only_with_the_poster_it_needs() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root)
+        var meta = try store.createNote(fromDecryptedAudio: Data("ogg".utf8), sessionId: 1_730_000_301, duration: 3)
+        try store.writeTranscript(noteId: meta.id, text: "Words.")
+        try store.writeBrief(noteId: meta.id, brief: MeetingBrief(title: "From the brief", topics: [], actionItems: []))
+        meta.transcriptStatus = .done
+        meta.summaryStatus = .done
+        meta.briefStatus = .running
+        try store.updateMetadata(meta)
+        // Image wanted, none written: the brief step still has work.
+        _ = PipelineRecovery.recoverInterrupted(store: store, options: PipelineOptions(posterImage: true))
+        XCTAssertEqual(try store.allNotes().first { $0.id == meta.id }?.briefStatus, .pending)
+        meta.briefStatus = .running
+        try store.updateMetadata(meta)
+        // Image off: the written brief is done, and its title is restored.
+        _ = PipelineRecovery.recoverInterrupted(store: store, options: PipelineOptions(posterImage: false))
+        let recovered = try XCTUnwrap(try store.allNotes().first { $0.id == meta.id })
+        XCTAssertEqual(recovered.briefStatus, .done)
+        XCTAssertEqual(recovered.title, "From the brief")
+    }
+
     func test_retryClassifiesTimeoutAsRetryable() {
         XCTAssertEqual(
             PipelineRetry.classify(SummarizerError.timedOut(seconds: 90)),

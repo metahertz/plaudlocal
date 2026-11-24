@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage(RemoteProcessingSettings.summarizeKey) private var remoteSummarize = true
     @AppStorage(PipelineOptions.summarizeKey) private var summarize = true
     @AppStorage(PipelineOptions.posterKey) private var buildPoster = true
+    @AppStorage(PipelineOptions.posterImageKey) private var posterImage = true
     @State private var remoteToken = ""
     @State private var remoteTokenSaved = KeyVault().load(account: RemoteProcessingSettings.tokenAccount) != nil
     @State private var remoteStatus = ""
@@ -90,7 +91,9 @@ struct SettingsView: View {
                     }
                     if mode.wrappedValue != .audioOnly {
                         Toggle("Summarize", isOn: $summarize)
-                        Toggle("Build brief and poster", isOn: $buildPoster)
+                        Toggle("Build brief", isOn: $buildPoster)
+                        Toggle("Make poster image", isOn: $posterImage)
+                            .disabled(!buildPoster)
                     }
                 } header: {
                     Text("Processing")

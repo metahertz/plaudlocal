@@ -51,6 +51,19 @@ final class ProcessingSettingsTests: XCTestCase {
         defaults.set(false, forKey: PipelineOptions.summarizeKey)
         defaults.set(false, forKey: PipelineOptions.posterKey)
         XCTAssertEqual(PipelineOptions.load(defaults: defaults), PipelineOptions(summarize: false, buildPoster: false))
+        XCTAssertTrue(PipelineOptions.load(defaults: defaults).posterImage, "the poster image switch defaults on")
+        defaults.set(false, forKey: PipelineOptions.posterImageKey)
+        XCTAssertFalse(PipelineOptions.load(defaults: defaults).posterImage)
+    }
+
+    func test_with_the_poster_image_off_a_brief_without_a_poster_is_done() {
+        var meta = NoteMetadata(id: "n", sessionId: 1, createdAt: Date(), durationSeconds: 1, title: "t",
+                                transcriptStatus: .done, summaryStatus: .done, briefStatus: .done,
+                                exportStatus: .pending, audioFileName: "audio.ogg")
+        XCTAssertFalse(PipelineOptions(posterImage: false).briefNeeded(for: meta))
+        XCTAssertTrue(PipelineOptions(posterImage: true).briefNeeded(for: meta), "image on: the missing poster is still work")
+        meta.posterFileName = "p.png"
+        XCTAssertFalse(PipelineOptions(posterImage: true).briefNeeded(for: meta))
     }
 
     // MARK: - Engine selection
