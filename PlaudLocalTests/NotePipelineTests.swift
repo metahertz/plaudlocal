@@ -37,6 +37,26 @@ final class NotePipelineTests: XCTestCase {
     }
 }
 
+extension NotePipelineTests {
+    func test_cancelled_transcription_stays_pending_not_failed() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 12, duration: 5)
+        let pipeline = NotePipeline(
+            store: store,
+            transcriber: CancelledTranscriber(),
+            summarizer: Summarizer(forceUnavailable: true),
+            exporter: Exporter(settings: ExportSettings.load())
+        )
+        _ = try? await pipeline.enrichImportedNote(meta)
+        XCTAssertEqual(try store.allNotes().first { $0.id == meta.id }?.transcriptStatus, .pending)
+    }
+}
+
+private struct CancelledTranscriber: Transcribing {
+    func transcribe(audioURL: URL) async throws -> String { throw CancellationError() }
+}
+
 struct FakeTranscriber: Transcribing {
     let text: String
     func transcribe(audioURL: URL) async throws -> String { text }

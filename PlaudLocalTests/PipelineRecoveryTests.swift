@@ -63,6 +63,26 @@ final class PipelineRecoveryTests: XCTestCase {
         XCTAssertTrue(queued.contains(failed.id))
     }
 
+    func test_failed_transcription_is_retried_once_per_launch_not_on_every_visit() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root)
+        var meta = try store.createNote(fromDecryptedAudio: Data("ogg".utf8), sessionId: 1_730_000_101, duration: 4)
+        meta.transcriptStatus = .failed
+        try store.updateMetadata(meta)
+
+        // First Library visit this launch: retried.
+        XCTAssertTrue(PipelineRecovery.recoverInterrupted(store: store).map(\.id).contains(meta.id))
+
+        // The retry fails again (e.g. the recording has no speech).
+        var again = try XCTUnwrap(try store.allNotes().first { $0.id == meta.id })
+        again.transcriptStatus = .failed
+        try store.updateMetadata(again)
+
+        // Later visits in the same launch leave it alone, and it still shows as failed.
+        XCTAssertFalse(PipelineRecovery.recoverInterrupted(store: store).map(\.id).contains(meta.id))
+        XCTAssertEqual(try store.allNotes().first { $0.id == meta.id }?.transcriptStatus, .failed)
+    }
+
     func test_retryClassifiesTimeoutAsRetryable() {
         XCTAssertEqual(
             PipelineRetry.classify(SummarizerError.timedOut(seconds: 90)),
