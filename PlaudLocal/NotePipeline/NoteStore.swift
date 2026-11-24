@@ -50,6 +50,46 @@ struct NoteStore {
     }
 
     func updateMetadata(_ meta: NoteMetadata) throws {
+        var meta = meta
+        // `renameNote` is the only way to change a title the user set. A pipeline pass holds the
+        // metadata it read when it started, so whenever either that copy or the file has a user
+        // title, the file's title and flag stand: the pass can't write the brief's title over a
+        // rename, or an earlier rename over a later one or a reset. With neither set, the pass's
+        // title (the brief's) is written as before.
+        if let current = metadata(id: meta.id), current.titleSetByUser || meta.titleSetByUser {
+            meta.title = current.title
+            meta.titleSetByUser = current.titleSetByUser
+        }
+        try writeMetadata(meta)
+    }
+
+    /// Sets the note's title as the user typed it. An empty title goes back to the automatic one
+    /// (the brief's title, else the recording label).
+    @discardableResult
+    func renameNote(id: String, to title: String) throws -> NoteMetadata {
+        guard var meta = metadata(id: id) else { throw NoteStoreError.notFound }
+        let typed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !meta.titleSetByUser, typed == meta.libraryHeadline {
+            return meta  // saved unchanged: keep following the automatic title
+        }
+        if typed.isEmpty {
+            meta.title = loadBrief(noteId: id)?.title ?? meta.recordingLabel
+            meta.titleSetByUser = false
+        } else {
+            meta.title = typed
+            meta.titleSetByUser = true
+        }
+        try writeMetadata(meta)
+        return meta
+    }
+
+    private func metadata(id: String) -> NoteMetadata? {
+        let url = noteDirectory(id: id).appendingPathComponent("metadata.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(NoteMetadata.self, from: data)
+    }
+
+    private func writeMetadata(_ meta: NoteMetadata) throws {
         let url = noteDirectory(id: meta.id).appendingPathComponent("metadata.json")
         let data = try JSONEncoder().encode(meta)
         try data.write(to: url, options: .atomic)

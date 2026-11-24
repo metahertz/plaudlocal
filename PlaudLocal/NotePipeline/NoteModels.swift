@@ -13,7 +13,7 @@ struct NoteMetadata: Codable, Identifiable, Equatable, Hashable {
     var sessionId: UInt32
     var createdAt: Date
     var durationSeconds: Int
-    /// Display title — recording date label until a brief title is generated.
+    /// Display title: the recording date label, then the brief's title, unless the user set one.
     var title: String
     /// Stable recording date/time label from the session id (never overwritten by brief title).
     var recordingLabel: String
@@ -26,19 +26,21 @@ struct NoteMetadata: Codable, Identifiable, Equatable, Hashable {
     var posterFileName: String?
     /// When true, on-device ASR/summary/poster were skipped so raw audio can be processed externally.
     var audioOnlyExport: Bool
+    /// The user typed `title`; only `NoteStore.renameNote` changes it (an empty name clears this).
+    var titleSetByUser: Bool
 
     var recordingDate: Date {
         Date(timeIntervalSince1970: TimeInterval(sessionId))
     }
 
     var libraryHeadline: String {
-        briefStatus == .done ? title : recordingLabel
+        titleSetByUser || briefStatus == .done ? title : recordingLabel
     }
 
     enum CodingKeys: String, CodingKey {
         case id, sessionId, createdAt, durationSeconds, title, recordingLabel
         case transcriptStatus, summaryStatus, briefStatus, exportStatus
-        case audioFileName, posterFileName, audioOnlyExport
+        case audioFileName, posterFileName, audioOnlyExport, titleSetByUser
     }
 
     init(
@@ -54,7 +56,8 @@ struct NoteMetadata: Codable, Identifiable, Equatable, Hashable {
         exportStatus: PipelineStatus,
         audioFileName: String,
         posterFileName: String? = nil,
-        audioOnlyExport: Bool = false
+        audioOnlyExport: Bool = false,
+        titleSetByUser: Bool = false
     ) {
         self.id = id
         self.sessionId = sessionId
@@ -69,6 +72,7 @@ struct NoteMetadata: Codable, Identifiable, Equatable, Hashable {
         self.audioFileName = audioFileName
         self.posterFileName = posterFileName
         self.audioOnlyExport = audioOnlyExport
+        self.titleSetByUser = titleSetByUser
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +90,7 @@ struct NoteMetadata: Codable, Identifiable, Equatable, Hashable {
         audioFileName = try c.decode(String.self, forKey: .audioFileName)
         posterFileName = try c.decodeIfPresent(String.self, forKey: .posterFileName)
         audioOnlyExport = try c.decodeIfPresent(Bool.self, forKey: .audioOnlyExport) ?? false
+        titleSetByUser = try c.decodeIfPresent(Bool.self, forKey: .titleSetByUser) ?? false
     }
 }
 
