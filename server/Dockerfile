@@ -16,7 +16,10 @@ USER plaud
 VOLUME ["/data"]
 EXPOSE 8080
 
+# With built-in TLS (PLAUD_REMOTE_TLS_CERT and _KEY set) the server only speaks HTTPS, so the check
+# must too. It skips certificate checks: the certificate names the public host, not 127.0.0.1, and
+# may come from a private CA this image doesn't trust.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD ["python", "-c", "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PLAUD_REMOTE_PORT', '8080') + '/healthz', timeout=3)"]
+    CMD ["python", "-c", "import os,ssl,urllib.request; tls = bool(os.environ.get('PLAUD_REMOTE_TLS_CERT')); urllib.request.urlopen(('https' if tls else 'http') + '://127.0.0.1:' + os.environ.get('PLAUD_REMOTE_PORT', '8080') + '/healthz', timeout=3, context=ssl._create_unverified_context() if tls else None)"]
 
 CMD ["python", "-m", "plaud_remote"]
