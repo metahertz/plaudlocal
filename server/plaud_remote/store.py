@@ -65,6 +65,8 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
         "system_prompt": DEFAULT_SYSTEM_PROMPT,
         "temperature": 0.2,
         "max_chunk_chars": DEFAULT_MAX_CHUNK_CHARS,
+        # Ask the summary model to suggest speaker names for speaker transcripts (issue #12).
+        "suggest_names": True,
         "timeout_seconds": 600,
     },
     "queue": {
@@ -78,7 +80,7 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
 # so rotating a key does not invalidate previous results.
 _RESULT_KEYS = {
     "transcription": ("provider", "base_url", "model", "language", "prompt"),
-    "summarization": ("base_url", "model", "system_prompt", "temperature", "max_chunk_chars"),
+    "summarization": ("base_url", "model", "system_prompt", "temperature", "max_chunk_chars", "suggest_names"),
 }
 
 ACTIVE_STATUSES = ("queued", "transcribing", "summarizing")
@@ -110,7 +112,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     summary_error TEXT,
     want_summary INTEGER NOT NULL DEFAULT 1,
     interruptions INTEGER NOT NULL DEFAULT 0,
-    transcript_json TEXT
+    transcript_json TEXT,
+    names_checked INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs (status, next_attempt_at, created_at);
 CREATE INDEX IF NOT EXISTS jobs_dedupe ON jobs (kind, input_hash, config_hash);
@@ -157,6 +160,8 @@ class Store:
                 conn.execute("ALTER TABLE jobs ADD COLUMN interruptions INTEGER NOT NULL DEFAULT 0")
             if "transcript_json" not in columns:  # databases created before speaker transcripts
                 conn.execute("ALTER TABLE jobs ADD COLUMN transcript_json TEXT")
+            if "names_checked" not in columns:  # databases created before name suggestions
+                conn.execute("ALTER TABLE jobs ADD COLUMN names_checked INTEGER NOT NULL DEFAULT 0")
         self._upgrade_settings()
 
     def _conn(self) -> sqlite3.Connection:
@@ -272,10 +277,11 @@ class Store:
     def config_hash(self) -> str:
         settings = self.settings()
         relevant = {s: {k: settings[s][k] for k in keys} for s, keys in _RESULT_KEYS.items()}
-        if relevant["transcription"]["provider"] == DEFAULT_SETTINGS["transcription"]["provider"]:
-            # Left out at its default so servers that never change it keep their existing hashes
-            # (and with them, reuse of jobs from before the setting existed).
-            del relevant["transcription"]["provider"]
+        # Settings added later are left out at their defaults, so servers that never change them
+        # keep their existing hashes (and with them, reuse of jobs from before the setting existed).
+        for section, key in (("transcription", "provider"), ("summarization", "suggest_names")):
+            if relevant[section][key] == DEFAULT_SETTINGS[section][key]:
+                del relevant[section][key]
         return hashlib.sha256(json.dumps(relevant, sort_keys=True).encode()).hexdigest()
 
     @staticmethod

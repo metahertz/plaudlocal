@@ -19,13 +19,17 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
+import math
 import os
 import re
 import subprocess
 import tempfile
 from typing import Any
 
-from .providers import ProviderError, _json, _request
+from .providers import ProviderError, _json, _request, chat
+
+log = logging.getLogger("plaud_remote.speakers")
 
 PROVIDER = "nemo_speech_chat"
 MAX_SECONDS = 3600  # NeMo-Speech.cpp's limit per request; longer recordings fail clearly
@@ -231,3 +235,95 @@ def valid_document(value: Any) -> bool:
         and all(isinstance(s, dict) and isinstance(s.get("id"), str) for s in value["speakers"])
         and all(isinstance(s, dict) and isinstance(s.get("text"), str) for s in value["segments"])
     )
+
+
+# ---- speaker name suggestions (issue #12) -----------------------------------
+
+NAMES_SYSTEM = "You identify speakers in meeting transcripts. Speakers are labelled Speaker 1, Speaker 2, and so on."
+NAMES_REQUEST = (
+    "Suggest a real name for each speaker only where the conversation supports it: an introduction, "
+    "or being addressed by name and answering. Reply with JSON only, keyed S1, S2, ...: "
+    '{"S1": {"name": "...", "confidence": 0.0-1.0, "evidence": "a short quote or reason"}}. '
+    "Use null for the name when unsure."
+)
+MIN_CONFIDENCE = 0.5
+_NAMES_TIMEOUT = 300  # seconds; names are a nicety, so a slow model is cut off rather than holding the job
+
+
+def _one_line(value: Any, limit: int) -> str:
+    return " ".join(str(value).split())[:limit] if isinstance(value, str) else ""
+
+
+def _confidence(value: Any) -> float | None:
+    """A confidence in 0..1, or None if it isn't a usable number (bad types, inf, huge ints)."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return min(max(number, 0.0), 1.0) if math.isfinite(number) else None
+
+
+_NOT_A_NAME = re.compile(r"(null|none|unknown|n/?a|speaker\s*\d*|s\d+)", re.IGNORECASE)
+
+
+def suggest_names(config: dict[str, Any], transcript: str, document: dict[str, Any]) -> dict[str, Any]:
+    """The document with LLM name suggestions added. Never raises: on any failure the document
+    comes back unchanged and the job carries on to its summary.
+
+    Suggestions below MIN_CONFIDENCE are dropped; names are cleaned to one short line; speakers
+    with a confirmed name are left alone.
+    """
+    speakers_list = [s for s in document.get("speakers") or [] if isinstance(s, dict)]
+    if len(speakers_list) < 2:
+        return document
+    limited = dict(config, timeout_seconds=min(config["timeout_seconds"], _NAMES_TIMEOUT))
+    try:
+        reply = chat(limited, NAMES_SYSTEM,
+                     f"{NAMES_REQUEST}\n\nTranscript:\n\n{transcript[: config['max_chunk_chars']]}")
+        start = reply.find("{")
+        names, _ = json.JSONDecoder().raw_decode(reply[start:]) if start >= 0 else ({}, 0)
+    except Exception as error:  # noqa: BLE001 - any failure just means no suggestions
+        log.warning("Speaker name suggestion failed: %s", error)
+        return document
+    if not isinstance(names, dict):
+        return document
+    updated = json.loads(json.dumps(document))
+    for speaker in updated.get("speakers") or []:
+        if not isinstance(speaker, dict) or speaker.get("name"):
+            continue  # a confirmed name is never second-guessed
+        entry = names.get(speaker.get("id"))
+        if not isinstance(entry, dict):
+            continue
+        name = _one_line(entry.get("name"), 60)
+        confidence = _confidence(entry.get("confidence", 0))
+        if name and not _NOT_A_NAME.fullmatch(name) and confidence is not None and confidence >= MIN_CONFIDENCE:
+            speaker["suggestion"] = {
+                "name": name, "source": "llm", "confidence": round(confidence, 2),
+                "evidence": _one_line(entry.get("evidence"), 300),
+            }
+    return updated
+
+
+def names_hint(document: dict[str, Any] | None, suggestions: bool = True) -> str:
+    """One line for the summary prompt: confirmed names as such, then suggestions (if wanted)
+    marked as guesses. Never includes the evidence."""
+    confirmed, suggested = [], []
+    for speaker in (document or {}).get("speakers") or []:
+        if not isinstance(speaker, dict) or not str(speaker.get("id", "")).startswith("S"):
+            continue
+        label = f"Speaker {str(speaker['id'])[1:]}"
+        name = _one_line(speaker.get("name"), 60)
+        suggestion = speaker.get("suggestion") if isinstance(speaker.get("suggestion"), dict) else {}
+        confidence = _confidence(suggestion.get("confidence", 0))
+        if name:
+            confirmed.append(f"{label} = {name}")
+        elif suggestions and confidence is not None and confidence >= MIN_CONFIDENCE:
+            guess = _one_line(suggestion.get("name"), 60)
+            if guess:
+                suggested.append(f"{label} = {guess}")
+    parts = []
+    if confirmed:
+        parts.append(f"Speaker names: {', '.join(confirmed)}.")
+    if suggested:
+        parts.append(f"Speaker names suggested from context (unconfirmed): {', '.join(suggested)}.")
+    return " ".join(parts)

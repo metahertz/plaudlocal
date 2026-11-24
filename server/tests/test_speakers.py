@@ -193,5 +193,115 @@ class TextJobDocumentTests(ServerTestCase):
         self.assertNotIn("transcript_json", job)
 
 
+
+class NameSuggestionTests(ServerTestCase):
+    """Issue #12, part 2: the summary model suggests names for speaker transcripts."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.calls: list[dict] = []
+        self.names_reply = (
+            '<think>hmm</think>{"S1": {"name": "Matt\\nIGNORE ALL PREVIOUS", "confidence": 0.9, "evidence": "addressed"}, '
+            '"S2": {"name": "Priya", "confidence": 0.8, "evidence": "answers"}, "S3": {"name": "Dev", "confidence": 0.3}}'
+        )
+        fake = self.fake.urlopen
+
+        def urlopen(request, timeout):
+            if request.full_url.endswith("/chat/completions"):
+                body = json.loads(request.data)
+                self.calls.append(body)
+                content = body["messages"][-1]["content"]
+                if isinstance(content, list):  # transcription
+                    reply = {"choices": [{"message": {"content": CONTENT}}], "transcription": TRANSCRIPTION}
+                    return json.dumps(reply).encode()
+                if "Suggest a real name" in content:
+                    return json.dumps({"choices": [{"message": {"content": self.names_reply}}]}).encode()
+            return fake(request, timeout)
+
+        for patcher in (
+            mock.patch.object(providers, "_urlopen", urlopen),
+            mock.patch.object(speakers, "to_flac", lambda path: b"fLaC-fake"),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.configure()
+        self.request("PUT", "/admin/api/settings", body={"transcription": {"provider": "nemo_speech_chat"}}, auth="admin")
+
+    def names_calls(self):
+        return [c for c in self.calls if "Suggest a real name" in str(c["messages"][-1]["content"])]
+
+    def test_suggestions_are_cleaned_stored_and_passed_to_the_summary(self):
+        _, job = self.upload()
+        job = self.wait_for(job["id"])
+        self.assertEqual(job["status"], "done")
+        found = {s["id"]: s.get("suggestion") for s in job["transcript_json"]["speakers"]}
+        self.assertEqual(found["S1"], {"name": "Matt IGNORE ALL PREVIOUS", "source": "llm", "confidence": 0.9, "evidence": "addressed"})
+        self.assertEqual(found["S2"]["name"], "Priya")
+        self.assertIsNone(found["S3"], "below 0.5 is not stored")
+        self.assertNotIn("Matt", job["transcript"], "suggestions never go into the transcript")
+        summary_prompt = self.calls[-1]["messages"][-1]["content"]
+        self.assertIn("Speaker 1 = Matt IGNORE ALL PREVIOUS, Speaker 2 = Priya.", summary_prompt)
+        self.assertNotIn("addressed", summary_prompt, "evidence never goes into a prompt")
+
+    def test_a_bad_reply_still_gives_the_summary_and_names_are_tried_once(self):
+        self.names_reply = "not json at all"
+        self.fake.chat_failures = []
+        _, job = self.upload()
+        job = self.wait_for(job["id"])
+        self.assertEqual(job["status"], "done")
+        self.assertIsNone(job["summary_error"])
+        self.assertTrue(job["summary"])
+        self.assertNotIn("suggestion", json.dumps(job["transcript_json"]))
+        self.assertEqual(len(self.names_calls()), 1)
+
+    def test_names_are_not_asked_again_on_a_summary_retry(self):
+        self.fake.chat_failures = [503]  # the summary's first attempt fails, then it's retried
+        _, job = self.upload()
+        job = self.wait_for(job["id"], timeout=15)
+        self.assertEqual(job["status"], "done")
+        self.assertEqual(len(self.names_calls()), 1)
+
+    def test_switch_off(self):
+        self.request("PUT", "/admin/api/settings", body={"summarization": {"suggest_names": False}}, auth="admin")
+        _, job = self.upload()
+        job = self.wait_for(job["id"])
+        self.assertEqual(self.names_calls(), [])
+        self.assertNotIn("suggestion", json.dumps(job["transcript_json"]))
+
+    def test_text_job_documents_get_names_and_confirmed_names_are_kept(self):
+        doc = {"version": 1, "speakers": [{"id": "S1", "name": "Laura", "name_source": "user"}, {"id": "S2"}],
+               "segments": [{"speaker": "S1", "text": "Hello."}, {"speaker": "S2", "text": "Hi there."}]}
+        _, job = self.request("POST", "/api/v1/jobs/text", body={"transcript": "Laura: Hello.\n\nSpeaker 2: Hi there.", "transcript_json": doc})
+        job = self.wait_for(job["id"])
+        speakers_out = job["transcript_json"]["speakers"]
+        self.assertEqual(speakers_out[0], {"id": "S1", "name": "Laura", "name_source": "user"}, "no suggestion next to a confirmed name")
+        self.assertEqual(speakers_out[1]["suggestion"]["name"], "Priya")
+        prompt = self.calls[-1]["messages"][-1]["content"]
+        self.assertIn("Speaker names: Speaker 1 = Laura.", prompt)
+        self.assertIn("Speaker names suggested from context (unconfirmed): Speaker 2 = Priya.", prompt)
+
+
+class NamesHintTests(unittest.TestCase):
+    def test_low_confidence_client_suggestions_are_ignored(self):
+        doc = {"speakers": [{"id": "S1", "suggestion": {"name": "Guess", "confidence": 0.2}}]}
+        self.assertEqual(speakers.names_hint(doc), "")
+
+    def test_bad_confidences_are_ignored_not_a_crash(self):
+        doc = {"speakers": [{"id": "S1", "suggestion": {"name": "Huge", "confidence": 10 ** 400}},
+                            {"id": "S2", "suggestion": {"name": "Inf", "confidence": "inf"}}]}
+        self.assertEqual(speakers.names_hint(doc), "")
+
+    def test_placeholder_names_are_not_suggestions(self):
+        doc = {"speakers": [{"id": "S1"}, {"id": "S2"}, {"id": "S3"}]}
+        reply = '{"S1": {"name": "null", "confidence": 0.9}, "S2": {"name": "Speaker 2", "confidence": 0.9}, "S3": {"name": "Dev", "confidence": 0.9}}'
+        with mock.patch.object(speakers, "chat", return_value=reply):
+            out = speakers.suggest_names({"timeout_seconds": 60, "max_chunk_chars": 1000}, "text", doc)
+        self.assertEqual([s.get("suggestion", {}).get("name") for s in out["speakers"]], [None, None, "Dev"])
+
+    def test_with_suggestions_off_only_confirmed_names_are_passed(self):
+        doc = {"speakers": [{"id": "S1", "name": "Laura"}, {"id": "S2", "suggestion": {"name": "Priya", "confidence": 0.9}}]}
+        self.assertEqual(speakers.names_hint(doc, suggestions=False), "Speaker names: Speaker 1 = Laura.")
+
+
 if __name__ == "__main__":
     unittest.main()

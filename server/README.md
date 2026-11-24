@@ -80,6 +80,14 @@ The job then carries two forms of the transcript:
 `POST /api/v1/jobs/text` also accepts an optional `transcript_json` (for speaker transcripts made
 on the phone), stored with the job.
 
+**Speaker names.** When a speaker transcript has two or more speakers, the summary model is asked
+once per job, before the summary, to suggest a name for each speaker where the conversation
+supports it, with a confidence and a short piece of evidence. Suggestions of at least 0.5 are
+stored on the document's speakers as `suggestion`. They're never written into the transcript text,
+and names the user has confirmed are never replaced. The summary prompt gets one line listing confirmed
+names, and the suggestions marked unconfirmed. If the call fails, the job just continues without names. Switch it off
+with **Suggest speaker names** under Summarization.
+
 ## HTTPS
 
 The app refuses plain `http://` addresses, so recordings and the token never
