@@ -18,6 +18,16 @@ log = logging.getLogger("plaud_remote.worker")
 SUMMARY_NOT_CONFIGURED = "Summarization is not configured on the server"
 
 
+def _document(job_id: str, store: Store) -> dict[str, Any] | None:
+    """The job's stored speaker document (as saved after transcription), if any."""
+    job = store.get_job(job_id) or {}
+    try:
+        value = json.loads(job.get("transcript_json") or "null")
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
 class WorkerPool:
     def __init__(self, store: Store, workers: int = 1, backoff_base: float = 15.0, poll_interval: float = 1.0):
         self.store = store
@@ -107,8 +117,15 @@ class WorkerPool:
             return
 
         self.store.update_job(job_id, status="summarizing")
+        document = _document(job_id, self.store)
+        if document is not None and summary_config["suggest_names"] and not job.get("names_checked"):
+            # Once per job (the flag survives retries), outside the summary's attempts; never raises.
+            document = speakers.suggest_names(summary_config, transcript or "", document)
+            self.store.update_job(job_id, transcript_json=json.dumps(document), names_checked=1)
         try:
-            summary = providers.summarize(summary_config, transcript or "", job["title"])
+            summary = providers.summarize(
+                summary_config, transcript or "", job["title"], context=speakers.names_hint(document, suggestions=summary_config["suggest_names"])
+            )
         except ProviderError as error:
             if error.retryable and job["attempts"] < max_attempts:
                 self._requeue(job, str(error))

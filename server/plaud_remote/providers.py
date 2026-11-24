@@ -159,7 +159,7 @@ def split_transcript(text: str, max_chars: int) -> list[str]:
     return chunks
 
 
-def summarize(config: dict[str, Any], transcript: str, title: str = "") -> str:
+def summarize(config: dict[str, Any], transcript: str, title: str = "", context: str = "") -> str:
     """Summarize a transcript in one pass when it fits `max_chunk_chars`.
 
     One pass is what produces a good meeting summary: the model sees the whole meeting and
@@ -169,6 +169,8 @@ def summarize(config: dict[str, Any], transcript: str, title: str = "") -> str:
     """
     system_prompt = config["system_prompt"]
     heading = f"Recording title: {title}\n\n" if title else ""
+    if context:  # e.g. speaker names; a heading line, never part of the stored transcript
+        heading += f"{context}\n\n"
     limit = config["max_chunk_chars"]
     if len(transcript) <= limit:
         return chat(config, system_prompt, f"{heading}Transcript:\n\n{transcript}")
