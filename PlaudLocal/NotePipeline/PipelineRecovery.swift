@@ -119,8 +119,13 @@ enum PipelineRecovery {
             let wantsBrief = transcriptReady && meta.briefStatus == .pending
             // Failed poster / unusable-summary leftovers get one automatic retry per launch,
             // not one on every Library appearance.
+            //
+            // "Summaries are turned off" is the user's choice, not a failure. Retrying it would
+            // re-run these notes at every launch, and summarize the whole library at once the
+            // moment the switch goes back on (in remote mode, uploading every old transcript).
+            let summaryTurnedOff = summary?.contains(PipelineOptions.summaryOffReason) == true
             let hasStaleFailure = transcriptReady
-                && (meta.briefStatus == .failed || meta.summaryStatus == .skipped)
+                && (meta.briefStatus == .failed || (meta.summaryStatus == .skipped && !summaryTurnedOff))
             if wantsTranscript || wantsSummary || wantsBrief {
                 needsEnrichment.append(meta)
             } else if hasStaleFailure, PipelineActivity.shared.claimFailureRetry(meta.id) {

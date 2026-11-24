@@ -39,6 +39,30 @@ final class PipelineRecoveryTests: XCTestCase {
         XCTAssertFalse(PipelineRecovery.isRetryableSkipReason("A normal summary"))
     }
 
+    func test_notes_with_summaries_turned_off_are_not_retried() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root)
+        func makeNote(sessionId: UInt32, summary: String) throws -> NoteMetadata {
+            var meta = try store.createNote(fromDecryptedAudio: Data("ogg".utf8), sessionId: sessionId, duration: 3)
+            try store.writeTranscript(noteId: meta.id, text: "Some words.")
+            try store.writeSummary(noteId: meta.id, text: summary)
+            meta.transcriptStatus = .done
+            meta.summaryStatus = .skipped
+            meta.briefStatus = .done
+            try store.updateMetadata(meta)
+            return meta
+        }
+        let turnedOff = try makeNote(
+            sessionId: 1_730_000_001, summary: "Summary unavailable: \(PipelineOptions.summaryOffReason)"
+        )
+        // A real (non-retryable) failure still gets its one retry per launch.
+        let failed = try makeNote(sessionId: 1_730_000_002, summary: "Summary unavailable: Empty transcript")
+
+        let queued = PipelineRecovery.recoverInterrupted(store: store).map(\.id)
+        XCTAssertFalse(queued.contains(turnedOff.id))
+        XCTAssertTrue(queued.contains(failed.id))
+    }
+
     func test_retryClassifiesTimeoutAsRetryable() {
         XCTAssertEqual(
             PipelineRetry.classify(SummarizerError.timedOut(seconds: 90)),
