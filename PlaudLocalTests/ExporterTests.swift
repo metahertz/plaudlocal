@@ -50,4 +50,21 @@ final class ExporterTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: package.appendingPathComponent("brief.json").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: package.appendingPathComponent(posterName).path))
     }
+
+    func test_export_can_be_limited_to_some_files() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("ogg".utf8), sessionId: 1_730_000_700, duration: 3)
+        try store.writeTranscript(noteId: meta.id, text: "hello")
+        let exportRoot = root.appendingPathComponent("export")
+        try FileManager.default.createDirectory(at: exportRoot, withIntermediateDirectories: true)
+        var settings = ExportSettings.load(keyVault: KeyVault(service: "dev.metahertz.plaudlocal.tests.export"))
+        settings.audioOnlyMode = false
+        var exporter = Exporter(settings: settings)
+        exporter.localFolderOverride = exportRoot
+        _ = try await exporter.export(meta, store: store, only: ["transcript.md"])
+        let package = exportRoot.appendingPathComponent(exporter.packageFolderName(for: meta))
+        let written = try FileManager.default.contentsOfDirectory(atPath: package.path)
+        XCTAssertEqual(written, ["transcript.md"], "the recording isn't copied again")
+    }
 }

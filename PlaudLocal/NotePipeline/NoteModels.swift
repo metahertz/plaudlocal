@@ -307,6 +307,14 @@ struct TranscriptDocument: Codable, Equatable {
         try encoder.encode(self).write(to: noteDirectory.appendingPathComponent(fileName), options: .atomic)
     }
 
+    /// Sets (or, with an empty name, clears) the confirmed name of speaker `id`.
+    mutating func setName(_ name: String, forSpeaker id: String) {
+        guard let index = speakers.firstIndex(where: { $0.id == id }) else { return }
+        let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        speakers[index].name = typed.isEmpty ? nil : typed
+        speakers[index].nameSource = typed.isEmpty ? nil : "user"
+    }
+
     /// `transcript.md` for this document.
     func rendered() -> String { render(names: true) }
 

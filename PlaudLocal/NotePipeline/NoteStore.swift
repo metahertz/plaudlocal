@@ -201,6 +201,18 @@ struct NoteStore {
         try? FileManager.default.removeItem(at: finalURL)
     }
 
+    /// Names (or, with an empty name, un-names) a speaker in the note's speaker transcript, then
+    /// rewrites `transcript.md` from it. The summary and brief are left as they were (issue #12).
+    @discardableResult
+    func renameSpeaker(noteId: String, speakerId: String, to name: String) throws -> TranscriptDocument {
+        guard var document = readTranscriptDocument(noteId: noteId),
+              document.speakers.contains(where: { $0.id == speakerId }) else { throw NoteStoreError.notFound }
+        document.setName(name, forSpeaker: speakerId)
+        try document.write(in: noteDirectory(id: noteId))
+        try writeTranscript(noteId: noteId, text: document.rendered())
+        return document
+    }
+
     /// Before a transcription pass, or after a failed one: drop a document left from an earlier pass.
     func discardPendingTranscriptDocument(noteId: String) {
         try? FileManager.default.removeItem(
