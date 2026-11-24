@@ -145,7 +145,8 @@ struct NotePipeline {
             meta.exportStatus = .running
             try store.updateMetadata(meta)
             do {
-                let result = try await exporter.export(meta, store: store)
+                // Re-read: the user may have renamed the note during this pass (the folder name).
+                let result = try await exporter.export(currentMetadata(for: meta), store: store)
                 meta.exportStatus = (result.wroteLocal || result.wroteRemote) ? .done : .skipped
             } catch {
                 meta.exportStatus = .failed
@@ -221,7 +222,8 @@ struct NotePipeline {
         try store.updateMetadata(meta)
         do {
             // Audio-only mode always attempts export (that is the point of the setting).
-            let result = try await exporter.export(meta, store: store)
+            // Re-read: the user may have renamed the note during this pass (the folder name).
+            let result = try await exporter.export(currentMetadata(for: meta), store: store)
             meta.exportStatus = (result.wroteLocal || result.wroteRemote) ? .done : .skipped
         } catch {
             meta.exportStatus = .failed
@@ -349,7 +351,7 @@ struct NotePipeline {
         do {
             let brief = try await briefBuilder.build(transcript: transcript, summary: summary)
             try store.writeBrief(noteId: meta.id, brief: brief)
-            meta.title = brief.title
+            if !meta.titleSetByUser { meta.title = brief.title }
 
             let fileName = BriefBuilder.posterFileName(sessionId: meta.sessionId, title: brief.title)
             let png = try await renderPosterPNG(brief: brief, recordingDate: meta.recordingDate)

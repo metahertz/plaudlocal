@@ -7,6 +7,9 @@ struct LibraryView: View {
     @State private var selection = Set<String>()
     @State private var confirmDeleteAll = false
     @State private var resumeTask: Task<Void, Never>?
+    @State private var renamingId: String?
+    @State private var showingRename = false
+    @State private var renameText = ""
 
     var body: some View {
         NavigationStack {
@@ -30,6 +33,17 @@ struct LibraryView: View {
                         ForEach(notes) { note in
                             NavigationLink(value: note) {
                                 noteRow(note)
+                            }
+                            .swipeActions(edge: .leading) {
+                                Button("Rename") { startRename(note) }.tint(.blue)
+                            }
+                            // Any .swipeActions stops SwiftUI from adding .onDelete's swipe-to-delete,
+                            // so it's declared here explicitly.
+                            .swipeActions(edge: .trailing) {
+                                Button("Delete", role: .destructive) { delete(note) }
+                            }
+                            .contextMenu {
+                                Button("Rename", systemImage: "pencil") { startRename(note) }
                             }
                         }
                         .onDelete(perform: deleteNotes)
@@ -83,6 +97,13 @@ struct LibraryView: View {
             } message: {
                 Text(errorMessage ?? "")
             }
+            .alert("Rename recording", isPresented: $showingRename) {
+                TextField("Title", text: $renameText)
+                Button("Save") { saveRename() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Leave it empty to go back to the automatic title.")
+            }
             .confirmationDialog(
                 "Delete all \(notes.count) notes?",
                 isPresented: $confirmDeleteAll,
@@ -98,7 +119,7 @@ struct LibraryView: View {
     private func noteRow(_ note: NoteMetadata) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(note.libraryHeadline).font(.headline)
-            if note.briefStatus == .done, note.title != note.recordingLabel {
+            if note.briefStatus == .done || note.titleSetByUser, note.title != note.recordingLabel {
                 Text(note.recordingLabel)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -117,6 +138,31 @@ struct LibraryView: View {
                 statusChip("Exp", note.exportStatus)
             }
         }
+    }
+
+    private func startRename(_ note: NoteMetadata) {
+        renameText = note.titleSetByUser ? note.title : note.libraryHeadline
+        renamingId = note.id
+        showingRename = true
+    }
+
+    private func saveRename() {
+        guard let id = renamingId else { return }
+        do {
+            try NoteStore().renameNote(id: id, to: renameText)
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func delete(_ note: NoteMetadata) {
+        do {
+            try NoteStore().deleteNote(id: note.id)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        reload()
     }
 
     private func reload() {

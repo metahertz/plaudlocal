@@ -17,12 +17,25 @@ struct NoteDetailView: View {
     @State private var isBuildingPoster = false
     @State private var statusMessage: String?
     @State private var sharePayload: SharePayload?
+    @State private var showingRename = false
+    @State private var renameText = ""
 
     var body: some View {
         List {
             if let meta {
                 Section("Info") {
-                    LabeledContent("Title", value: meta.title)
+                    Button {
+                        renameText = meta.titleSetByUser ? meta.title : meta.libraryHeadline
+                        showingRename = true
+                    } label: {
+                        LabeledContent("Title") {
+                            HStack(spacing: 6) {
+                                Text(meta.title)
+                                Image(systemName: "pencil").foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
                     LabeledContent("Recording", value: meta.recordingLabel)
                     LabeledContent("Duration", value: "\(meta.durationSeconds)s")
                     LabeledContent("Audio", value: ByteCountFormatter.string(fromByteCount: Int64(audioBytes), countStyle: .file))
@@ -125,6 +138,19 @@ struct NoteDetailView: View {
         }
         .navigationTitle(meta?.title ?? "Note")
         .task { load() }
+        .alert("Rename recording", isPresented: $showingRename) {
+            TextField("Title", text: $renameText)
+            Button("Save") {
+                do {
+                    meta = try NoteStore().renameNote(id: noteId, to: renameText)
+                } catch {
+                    statusMessage = error.localizedDescription
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Leave it empty to go back to the automatic title.")
+        }
         .onDisappear {
             player?.stop()
             isPlaying = false
