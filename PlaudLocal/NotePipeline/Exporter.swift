@@ -49,10 +49,12 @@ struct Exporter {
     /// Override for tests: treat this directory as the Files bookmark target.
     var localFolderOverride: URL?
 
-    func export(_ note: NoteMetadata, store: NoteStore) async throws -> ExportResult {
+    /// `only` limits the export to those package files, e.g. just the transcript after a speaker
+    /// is named, so the recording isn't uploaded again.
+    func export(_ note: NoteMetadata, store: NoteStore, only: Set<String>? = nil) async throws -> ExportResult {
         let packageName = packageFolderName(for: note)
         let noteDir = store.noteDirectory(id: note.id)
-        let files = packageFileNames(for: note)
+        let files = packageFileNames(for: note).filter { only?.contains($0) ?? true }
         var wroteLocal = false
         var wroteRemote = false
 

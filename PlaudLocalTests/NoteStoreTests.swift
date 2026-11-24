@@ -92,3 +92,48 @@ extension NoteStoreTests {
         XCTAssertEqual(try store.allNotes().first { $0.id == meta.id }?.titleSetByUser, false)
     }
 }
+
+extension NoteStoreTests {
+    private func noteWithSpeakers() throws -> (NoteStore, NoteMetadata) {
+        let store = NoteStore(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 1_730_000_600, duration: 5)
+        var s2 = TranscriptDocument.Speaker(id: "S2")
+        s2.suggestion = .init(name: "Priya", source: "llm", confidence: 0.8, evidence: "answers")
+        let doc = TranscriptDocument(version: 1, speakers: [.init(id: "S1"), s2],
+                                     segments: [.init(speaker: "S1", text: "Budget?"), .init(speaker: "S2", text: "Four percent over.")])
+        try doc.write(in: store.noteDirectory(id: meta.id))
+        try store.writeTranscript(noteId: meta.id, text: doc.rendered())
+        return (store, meta)
+    }
+
+    func test_naming_a_speaker_updates_the_document_and_the_transcript() throws {
+        let (store, meta) = try noteWithSpeakers()
+        let doc = try store.renameSpeaker(noteId: meta.id, speakerId: "S2", to: " Priya ")
+        XCTAssertEqual(doc.speakers[1].userName, "Priya")
+        XCTAssertEqual(doc.speakers[1].suggestion?.name, "Priya", "the suggestion is kept alongside the name")
+        XCTAssertEqual(store.readTranscriptDocument(noteId: meta.id)?.speakers[1].nameSource, "user")
+        XCTAssertEqual(store.readTranscript(noteId: meta.id), "Speaker 1: Budget?\n\nPriya: Four percent over.")
+        XCTAssertEqual(doc.anonymousRendering(), "Speaker 1: Budget?\n\nSpeaker 2: Four percent over.",
+                       "naming doesn't change the anonymous text the job-reuse check compares")
+    }
+
+    func test_an_empty_name_goes_back_to_speaker_n() throws {
+        let (store, meta) = try noteWithSpeakers()
+        try store.renameSpeaker(noteId: meta.id, speakerId: "S1", to: "Laura")
+        let doc = try store.renameSpeaker(noteId: meta.id, speakerId: "S1", to: "  ")
+        XCTAssertNil(doc.speakers[0].name)
+        XCTAssertNil(doc.speakers[0].nameSource)
+        XCTAssertEqual(store.readTranscript(noteId: meta.id), "Speaker 1: Budget?\n\nSpeaker 2: Four percent over.")
+    }
+
+    func test_renaming_a_speaker_without_a_document_fails_cleanly() throws {
+        let store = NoteStore(root: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 1_730_000_601, duration: 5)
+        XCTAssertThrowsError(try store.renameSpeaker(noteId: meta.id, speakerId: "S1", to: "X"))
+    }
+
+    func test_renaming_an_unknown_speaker_fails() throws {
+        let (store, meta) = try noteWithSpeakers()
+        XCTAssertThrowsError(try store.renameSpeaker(noteId: meta.id, speakerId: "S9", to: "X"))
+    }
+}

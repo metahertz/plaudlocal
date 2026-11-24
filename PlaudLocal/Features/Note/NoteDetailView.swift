@@ -19,6 +19,11 @@ struct NoteDetailView: View {
     @State private var sharePayload: SharePayload?
     @State private var showingRename = false
     @State private var renameText = ""
+    @State private var speakerDocument: TranscriptDocument?
+    @State private var renamingSpeakerId: String?
+    @State private var showingSpeakerRename = false
+    @State private var speakerNameText = ""
+    @State private var speakerExport: Task<Void, Never>?
 
     var body: some View {
         List {
@@ -127,6 +132,17 @@ struct NoteDetailView: View {
                 }
             }
 
+            if let speakerDocument, !speakerDocument.speakers.isEmpty {
+                Section {
+                    ForEach(speakerDocument.speakers, id: \.id) { speaker in
+                        speakerRow(speaker)
+                    }
+                } header: {
+                    Text("Speakers")
+                } footer: {
+                    Text("Names are used in the transcript and when you share or export it. The summary and poster keep what they were made with. Transcribing again starts over with new speakers.")
+                }
+            }
             Section {
                 Text(transcript.isEmpty ? "Not transcribed yet" : transcript)
                     .font(.body)
@@ -142,6 +158,13 @@ struct NoteDetailView: View {
         }
         .navigationTitle(meta?.title ?? "Note")
         .task { load() }
+        .alert("Name this speaker", isPresented: $showingSpeakerRename) {
+            TextField("Name", text: $speakerNameText)
+            Button("Save") { if let id = renamingSpeakerId { nameSpeaker(id, speakerNameText) } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Leave it empty to remove the name.")
+        }
         .alert("Rename recording", isPresented: $showingRename) {
             TextField("Title", text: $renameText)
             Button("Save") {
@@ -251,8 +274,86 @@ struct NoteDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private func speakerRow(_ speaker: TranscriptDocument.Speaker) -> some View {
+        let label = "Speaker \(speaker.id.dropFirst())"
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(speaker.name ?? label).font(.body.weight(speaker.name == nil ? .regular : .semibold))
+                if speaker.name != nil { Text(label).font(.caption).foregroundStyle(.secondary) }
+                Spacer()
+                Button(speaker.name == nil ? "Name" : "Rename") {
+                    renamingSpeakerId = speaker.id
+                    speakerNameText = speaker.name ?? speaker.suggestion?.name ?? ""
+                    showingSpeakerRename = true
+                }
+                .buttonStyle(.borderless)
+                .disabled(isReprocessing)
+            }
+            if speaker.userName == nil, let suggestion = speaker.suggestion {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Suggested: \(suggestion.name)" + (suggestion.confidence.map { String(format: " (%.0f%%)", $0 * 100) } ?? ""))
+                            .font(.subheadline)
+                        if let evidence = suggestion.evidence, !evidence.isEmpty {
+                            Text(evidence).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button("Accept") { nameSpeaker(speaker.id, suggestion.name) }
+                        .buttonStyle(.borderless)
+                        .disabled(isReprocessing)
+                }
+            }
+        }
+    }
+
+    private func nameSpeaker(_ speakerId: String, _ name: String) {
+        let store = NoteStore()
+        let typed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if speakerDocument?.speakers.first(where: { $0.id == speakerId })?.userName ?? "" == typed { return }
+        do {
+            speakerDocument = try store.renameSpeaker(noteId: noteId, speakerId: speakerId, to: name)
+            transcript = store.readTranscript(noteId: noteId) ?? transcript
+            exportIfAutomatic()
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    /// With auto-export on, re-export the transcript files so the export carries the new names.
+    /// Waits a moment so several quick renames make one upload. Audio-only exports have no
+    /// transcript, so there's nothing to redo.
+    private func exportIfAutomatic() {
+        guard let meta else { return }
+        var settings = ExportSettings.load()
+        settings.autoExportEnabled = UserDefaults.standard.bool(forKey: "export.autoEnabled")
+        guard settings.autoExportEnabled, !settings.audioOnlyMode, !meta.audioOnlyExport else { return }
+        speakerExport?.cancel()
+        speakerExport = Task {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            let store = NoteStore()
+            let snapshot = (try? store.allNotes().first { $0.id == noteId }) ?? meta
+            let status: PipelineStatus
+            do {
+                let result = try await Exporter(settings: settings)
+                    .export(snapshot, store: store, only: ["transcript.md", TranscriptDocument.fileName])
+                status = (result.wroteLocal || result.wroteRemote) ? .done : .skipped
+            } catch {
+                status = .failed
+                statusMessage = "Export of the renamed transcript failed: \(error.localizedDescription)"
+            }
+            // Re-read: a pipeline pass may have saved the note during the upload.
+            guard var current = try? store.allNotes().first(where: { $0.id == noteId }) else { return }
+            current.exportStatus = status
+            try? store.updateMetadata(current)
+        }
+    }
+
     private func load() {
         let store = NoteStore()
+        speakerDocument = store.readTranscriptDocument(noteId: noteId)
         var loaded = try? store.allNotes().first(where: { $0.id == noteId })
         transcript = store.readTranscript(noteId: noteId) ?? ""
         summary = store.readSummary(noteId: noteId) ?? ""
