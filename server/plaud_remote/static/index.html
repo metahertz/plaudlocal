@@ -93,8 +93,12 @@
 
   <section>
     <h2>Transcription</h2>
-    <p class="sub">An OpenAI-compatible speech endpoint. The server posts each recording to <code>/audio/transcriptions</code> under this base URL.</p>
+    <p class="sub">An OpenAI-compatible speech endpoint (the server posts each recording to <code>/audio/transcriptions</code> under this base URL), or NVIDIA NeMo-Speech.cpp running Nemotron 3.5 Transcribe for transcripts with speakers (see the README).</p>
     <form id="transcription" class="grid">
+      <label class="wide">Endpoint type <select name="provider">
+        <option value="openai_transcriptions">OpenAI-compatible /audio/transcriptions (text only)</option>
+        <option value="nemo_speech_chat">NeMo-Speech.cpp, Nemotron 3.5 Transcribe (speakers and timestamps)</option>
+      </select></label>
       <label class="wide">Base URL <input type="url" name="base_url" placeholder="http://whisper:8000/v1"></label>
       <label>Model <input type="text" name="model" placeholder="whisper-large-v3"></label>
       <label>API key <input type="password" name="api_key" autocomplete="off"></label>

@@ -7,7 +7,9 @@ import threading
 import time
 from typing import Any
 
-from . import providers
+import json
+
+from . import providers, speakers
 from .providers import ProviderError
 from .store import Store
 
@@ -83,11 +85,15 @@ class WorkerPool:
 
         if job["kind"] == "audio" and transcript is None:
             try:
-                transcript = self._transcribe(job, settings["transcription"])
+                transcript, document = self._transcribe(job, settings["transcription"])
             except ProviderError as error:
                 self._fail_or_retry(job, str(error), error.retryable, max_attempts)
                 return
-            self.store.update_job(job_id, transcript=transcript, status="summarizing")
+            # Saved together, once: the app stores this exact text and compares it later.
+            self.store.update_job(
+                job_id, transcript=transcript, status="summarizing",
+                transcript_json=json.dumps(document) if document is not None else None,
+            )
             log.info("Job %s transcribed (%d characters)", job_id, len(transcript))
 
         if not job["want_summary"]:
@@ -115,12 +121,15 @@ class WorkerPool:
             return
         self._finish(job, settings, summary=summary, summary_error=None)
 
-    def _transcribe(self, job: dict[str, Any], config: dict[str, Any]) -> str:
+    def _transcribe(self, job: dict[str, Any], config: dict[str, Any]) -> tuple[str, dict[str, Any] | None]:
+        """(transcript text, issue #12 document or None for providers without speakers)."""
         if not Store.is_configured(config):
             raise ProviderError("Transcription is not configured on the server")
         if not job["audio_path"]:
             raise ProviderError("The uploaded audio is no longer on the server")
-        return providers.transcribe(config, job["audio_path"], job["filename"], job["content_type"])
+        if config.get("provider") == speakers.PROVIDER:
+            return speakers.transcribe(config, job["audio_path"])
+        return providers.transcribe(config, job["audio_path"], job["filename"], job["content_type"]), None
 
     def _fail_or_retry(self, job: dict[str, Any], message: str, retryable: bool, max_attempts: int) -> None:
         if retryable and job["attempts"] < max_attempts:

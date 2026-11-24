@@ -15,7 +15,7 @@ from importlib import resources
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
-from . import __version__, providers
+from . import __version__, providers, speakers
 from .providers import ProviderError
 from .store import Store, verify_password
 from .worker import WorkerPool
@@ -65,6 +65,16 @@ class Application:
         return False
 
 
+def _document(raw: str | None) -> Any:
+    """The stored transcript document, or None if there is none or it can't be read."""
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return None
+
+
 def public_job(job: dict[str, Any], include_text: bool = True) -> dict[str, Any]:
     out = {
         "id": job["id"],
@@ -85,6 +95,9 @@ def public_job(job: dict[str, Any], include_text: bool = True) -> dict[str, Any]
     if include_text:
         out["transcript"] = job["transcript"]
         out["summary"] = job["summary"]
+        document = _document(job.get("transcript_json"))
+        if document is not None:  # speaker transcripts only; absent for plain jobs
+            out["transcript_json"] = document
     return out
 
 
@@ -331,7 +344,16 @@ class Handler(BaseHTTPRequestHandler):
             raise HTTPError(400, "transcript is required")
         if not Store.is_configured(store.settings()["summarization"]):
             raise HTTPError(409, "Summarization is not configured on the server")
-        input_hash = hashlib.sha256(transcript.encode("utf-8")).hexdigest()
+        document = body.get("transcript_json")
+        if document is not None and not speakers.valid_document(document):
+            raise HTTPError(400, "transcript_json must be a version 1 transcript document (see issue #12)")
+        document_json = json.dumps(document, sort_keys=True) if document is not None else None
+        # The document is part of the input, so a request with one never reuses a job without.
+        # Without one, the hash is the transcript's alone, as before.
+        hashed = transcript.encode("utf-8")
+        if document_json is not None:
+            hashed += b"\x00" + document_json.encode("utf-8")
+        input_hash = hashlib.sha256(hashed).hexdigest()
         if not body.get("force"):
             existing = store.find_reusable_job("text", input_hash)
             if existing is not None:
@@ -343,6 +365,7 @@ class Handler(BaseHTTPRequestHandler):
             client_ref=str(body.get("client_ref") or ""),
             title=str(body.get("title") or ""),
             transcript=transcript,
+            transcript_json=document_json,
         )
         self.app.pool.wake()
         self._send_json(202, public_job(job))

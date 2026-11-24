@@ -1,6 +1,10 @@
 services:
   plaud-remote:
-    build: .
+    build:
+      context: .
+      args:
+        # Set PLAUD_REMOTE_WITH_FFMPEG=1 when building for the NeMo-Speech.cpp provider.
+        WITH_FFMPEG: ${PLAUD_REMOTE_WITH_FFMPEG:-0}
     image: plaud-remote:latest
     restart: unless-stopped
     ports:
