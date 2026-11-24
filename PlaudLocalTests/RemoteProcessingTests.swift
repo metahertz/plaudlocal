@@ -35,9 +35,9 @@ final class RemoteProcessingTests: XCTestCase {
         }
     }
 
-    private func job(_ status: String, transcript: String? = nil, summary: String? = nil,
+    private func job(_ status: String, id: String = "job-1", transcript: String? = nil, summary: String? = nil,
                      error: String? = nil, summaryError: String? = nil) -> [String: Any] {
-        var body: [String: Any] = ["id": "job-1", "status": status]
+        var body: [String: Any] = ["id": id, "status": status]
         body["transcript"] = transcript ?? NSNull()
         body["summary"] = summary ?? NSNull()
         body["error"] = error ?? NSNull()
@@ -55,6 +55,20 @@ final class RemoteProcessingTests: XCTestCase {
         let metadata = try JSONSerialization.data(withJSONObject: ["recordingLabel": label])
         try metadata.write(to: dir.appendingPathComponent("metadata.json"))
         return audio
+    }
+
+    /// URLSession hands a stubbed request's body over as a stream, not `httpBody`.
+    private func readAll(_ stream: InputStream) -> Data {
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        stream.open()
+        defer { stream.close() }
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count <= 0 { break }
+            data.append(buffer, count: count)
+        }
+        return data
     }
 
     private func queryValue(_ name: String, in request: URLRequest) -> String? {
@@ -113,14 +127,13 @@ final class RemoteProcessingTests: XCTestCase {
             return (404, ["error": "unexpected \(method) \(path)"])
         }
         let client = makeClient()
-        let registry = RemoteJobRegistry()
 
-        let transcript = try await RemoteTranscriber(client: client, registry: registry, polling: fastPolling)
+        let transcript = try await RemoteTranscriber(client: client, polling: fastPolling)
             .transcribe(audioURL: audio)
         XCTAssertEqual(transcript, "Hello from the server.")
 
-        let summary = try await RemoteSummarizer(client: client, registry: registry, polling: fastPolling)
-            .summarize(transcript: transcript)
+        let summary = try await RemoteSummarizer(client: client, polling: fastPolling)
+            .summarize(transcript: transcript, noteDirectory: audio.deletingLastPathComponent())
         XCTAssertEqual(summary, .text("A greeting."))
 
         let posts = requests.filter { $0.httpMethod == "POST" }
@@ -139,14 +152,111 @@ final class RemoteProcessingTests: XCTestCase {
         stub { [self] method, _ in
             method == "POST" ? (202, job("queued")) : (200, job("done", transcript: "Only text."))
         }
-        let registry = RemoteJobRegistry()
         let transcript = try await RemoteTranscriber(
-            client: makeClient(), registry: registry, polling: fastPolling, wantSummary: false
+            client: makeClient(), polling: fastPolling, wantSummary: false
         ).transcribe(audioURL: audio)
         XCTAssertEqual(transcript, "Only text.")
         let upload = try XCTUnwrap(requests.first(where: { $0.httpMethod == "POST" }))
         XCTAssertEqual(queryValue("summarize", in: upload), "0")
-        XCTAssertNil(registry.jobID(forTranscript: transcript), "a summary-less job must not be offered to the summary stage")
+        let record = RemoteJobRecord.read(in: audio.deletingLastPathComponent(), server: makeClient().baseURL)
+        XCTAssertEqual(record?.wantSummary, false, "the record notes that this job has no summary to offer")
+    }
+
+    // MARK: - Resuming after a relaunch
+
+    /// Writes the record a previous launch would have left behind.
+    private func rememberJob(for audio: URL) {
+        RemoteJobRecord(server: "https://server.test", jobId: "job-1", wantSummary: true)
+            .write(in: audio.deletingLastPathComponent())
+    }
+
+    func test_transcriber_saves_the_job_before_polling_and_resumes_it_without_uploading() async throws {
+        let audio = try makeNoteAudio()
+        var transcribing = true
+        stub { [self] method, _ in
+            if method == "POST" { return (202, job("queued")) }
+            return transcribing ? (200, job("transcribing")) : (200, job("done", transcript: "Resumed."))
+        }
+        // First launch: the app is "killed" (polling gives up) while the server is still working.
+        var polling = fastPolling
+        polling.transcriptTimeout = 0.05
+        _ = try? await RemoteTranscriber(client: makeClient(), polling: polling).transcribe(audioURL: audio)
+        XCTAssertNotNil(RemoteJobRecord.read(in: audio.deletingLastPathComponent(), server: makeClient().baseURL))
+
+        // Next launch: the job finished meanwhile; no second upload.
+        transcribing = false
+        requests = []
+        let text = try await RemoteTranscriber(client: makeClient(), polling: fastPolling).transcribe(audioURL: audio)
+        XCTAssertEqual(text, "Resumed.")
+        XCTAssertFalse(requests.contains { $0.httpMethod == "POST" }, "a known job must not be uploaded again")
+    }
+
+    func test_transcriber_uploads_again_when_the_server_forgot_the_job() async throws {
+        let audio = try makeNoteAudio()
+        rememberJob(for: audio)
+        var posted = false
+        stub { [self] method, _ in
+            if method == "POST" { posted = true; return (202, job("queued")) }
+            return posted ? (200, job("done", transcript: "Fresh.")) : (404, ["error": "Job not found"])
+        }
+        let text = try await RemoteTranscriber(client: makeClient(), polling: fastPolling).transcribe(audioURL: audio)
+        XCTAssertEqual(text, "Fresh.")
+        XCTAssertEqual(requests.filter { $0.httpMethod == "POST" }.count, 1)
+    }
+
+    func test_summarizer_reuses_the_upload_job_after_a_relaunch() async throws {
+        let audio = try makeNoteAudio()
+        rememberJob(for: audio)
+        stub { [self] method, path in
+            if method == "GET", path == "/api/v1/jobs/job-1" {
+                return (200, job("done", transcript: " Saved text. ", summary: "From the upload."))
+            }
+            return (404, ["error": "unexpected \(method) \(path)"])
+        }
+        // Called the way the pipeline calls it: through `any Summarizing`, wrapped in the fallback.
+        let summarizer: any Summarizing = FallbackSummarizer(
+            primary: RemoteSummarizer(client: makeClient(), polling: fastPolling),
+            fallback: StubSummarizer(result: .text("on-device summary"))
+        )
+        let result = try await summarizer.summarize(
+            transcript: "Saved text.", noteDirectory: audio.deletingLastPathComponent()
+        )
+        XCTAssertEqual(result, .text("From the upload."))
+        XCTAssertFalse(requests.contains { $0.httpMethod == "POST" }, "no second summary job")
+    }
+
+    func test_summarizer_ignores_a_job_whose_transcript_differs() async throws {
+        // The remote transcription timed out and the note holds an on-device transcript instead.
+        let audio = try makeNoteAudio()
+        rememberJob(for: audio)
+        stub { [self] method, path in
+            if method == "GET", path == "/api/v1/jobs/job-1" {
+                return (200, job("done", transcript: "Server's text.", summary: "Summary of the server's text."))
+            }
+            if method == "POST", path == "/api/v1/jobs/text" { return (202, job("queued", id: "job-2")) }
+            return (200, job("done", id: "job-2", transcript: "On-device text.", summary: "Summary of the note."))
+        }
+        let result = try await RemoteSummarizer(client: makeClient(), polling: fastPolling)
+            .summarize(transcript: "On-device text.", noteDirectory: audio.deletingLastPathComponent())
+        XCTAssertEqual(result, .text("Summary of the note."))
+        let text = try XCTUnwrap(requests.first { $0.url?.path == "/api/v1/jobs/text" })
+        let body = try XCTUnwrap(text.httpBody ?? text.httpBodyStream.map(readAll))
+        let fields = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(fields["client_ref"] as? String, "note-abc", "text jobs carry the note's reference")
+        XCTAssertEqual(fields["title"] as? String, "Mon 3 Nov, 10:15")
+    }
+
+    func test_summarizer_forgets_a_job_whose_summary_failed() async throws {
+        let audio = try makeNoteAudio()
+        rememberJob(for: audio)
+        stub { [self] _, _ in (200, job("done", transcript: "T.", summaryError: "model timed out")) }
+        let result = try await RemoteSummarizer(client: makeClient(), polling: fastPolling)
+            .summarize(transcript: "T.", noteDirectory: audio.deletingLastPathComponent())
+        XCTAssertEqual(result, .unavailable(reason: "model timed out"))
+        XCTAssertNil(
+            RemoteJobRecord.read(in: audio.deletingLastPathComponent(), server: makeClient().baseURL),
+            "a job that will never have a summary must not be reused"
+        )
     }
 
     func test_force_asks_the_server_for_a_fresh_run() async throws {
@@ -155,7 +265,7 @@ final class RemoteProcessingTests: XCTestCase {
             method == "POST" ? (202, job("queued")) : (200, job("done", transcript: "Text.", summary: "S."))
         }
         _ = try await RemoteTranscriber(
-            client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling, force: true
+            client: makeClient(), polling: fastPolling, force: true
         ).transcribe(audioURL: audio)
         let upload = try XCTUnwrap(requests.first(where: { $0.httpMethod == "POST" }))
         XCTAssertEqual(queryValue("force", in: upload), "1")
@@ -168,7 +278,7 @@ final class RemoteProcessingTests: XCTestCase {
             return (404, [:])
         }
         let result = try await RemoteSummarizer(
-            client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling
+            client: makeClient(), polling: fastPolling
         ).summarize(transcript: "Existing text.")
         XCTAssertEqual(result, .text("Short."))
         XCTAssertEqual(requests.first?.url?.path, "/api/v1/jobs/text")
@@ -181,7 +291,7 @@ final class RemoteProcessingTests: XCTestCase {
                 : (200, job("done", transcript: "T.", summaryError: "Summarization is not configured on the server"))
         }
         let result = try await RemoteSummarizer(
-            client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling
+            client: makeClient(), polling: fastPolling
         ).summarize(transcript: "T.")
         XCTAssertEqual(result, .unavailable(reason: "Summarization is not configured on the server"))
     }
@@ -194,7 +304,7 @@ final class RemoteProcessingTests: XCTestCase {
             method == "POST" ? (202, job("queued")) : (200, job("failed", error: "model exploded"))
         }
         do {
-            _ = try await RemoteTranscriber(client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling)
+            _ = try await RemoteTranscriber(client: makeClient(), polling: fastPolling)
                 .transcribe(audioURL: audio)
             XCTFail("expected a failure")
         } catch {
@@ -207,7 +317,7 @@ final class RemoteProcessingTests: XCTestCase {
         let audio = try makeNoteAudio()
         stub { _, _ in (401, ["error": "Missing or invalid API token"]) }
         do {
-            _ = try await RemoteTranscriber(client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling)
+            _ = try await RemoteTranscriber(client: makeClient(), polling: fastPolling)
                 .transcribe(audioURL: audio)
             XCTFail("expected a failure")
         } catch {
@@ -234,7 +344,7 @@ final class RemoteProcessingTests: XCTestCase {
         var polling = fastPolling
         polling.transcriptTimeout = 0.05
         do {
-            _ = try await RemoteTranscriber(client: makeClient(), registry: RemoteJobRegistry(), polling: polling)
+            _ = try await RemoteTranscriber(client: makeClient(), polling: polling)
                 .transcribe(audioURL: audio)
             XCTFail("expected a timeout")
         } catch {
@@ -248,7 +358,7 @@ final class RemoteProcessingTests: XCTestCase {
         let audio = try makeNoteAudio()
         stub { _, _ in (500, ["error": "down"]) }
         let transcriber = FallbackTranscriber(
-            primary: RemoteTranscriber(client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling),
+            primary: RemoteTranscriber(client: makeClient(), polling: fastPolling),
             fallback: FakeTranscriber(text: "on-device text")
         )
         let text = try await transcriber.transcribe(audioURL: audio)
@@ -260,7 +370,7 @@ final class RemoteProcessingTests: XCTestCase {
             method == "POST" ? (202, job("queued")) : (200, job("done", transcript: "T.", summaryError: "nope"))
         }
         let summarizer = FallbackSummarizer(
-            primary: RemoteSummarizer(client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling),
+            primary: RemoteSummarizer(client: makeClient(), polling: fastPolling),
             fallback: StubSummarizer(result: .text("on-device summary"))
         )
         let result = try await summarizer.summarize(transcript: "T.")
@@ -272,7 +382,7 @@ final class RemoteProcessingTests: XCTestCase {
             method == "POST" ? (202, job("queued")) : (200, job("done", transcript: "T.", summary: "remote summary"))
         }
         let summarizer = FallbackSummarizer(
-            primary: RemoteSummarizer(client: makeClient(), registry: RemoteJobRegistry(), polling: fastPolling),
+            primary: RemoteSummarizer(client: makeClient(), polling: fastPolling),
             fallback: StubSummarizer(result: .text("on-device summary"))
         )
         let result = try await summarizer.summarize(transcript: "T.")

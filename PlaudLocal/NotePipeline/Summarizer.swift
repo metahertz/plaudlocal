@@ -22,6 +22,20 @@ enum SummarizerError: Error, LocalizedError {
 
 protocol Summarizing: Sendable {
     func summarize(transcript: String) async throws -> SummaryResult
+    /// Same, for a transcript that belongs to the note in `noteDirectory`, so an engine can
+    /// find work it already started for that note (see `RemoteJobRecord`). Engines that
+    /// don't need the note use the default below.
+    ///
+    /// This must stay a protocol requirement: a method that exists only in an extension is
+    /// picked at compile time, so a call through `any Summarizing` would always run the
+    /// default and never reach an engine's own version.
+    func summarize(transcript: String, noteDirectory: URL?) async throws -> SummaryResult
+}
+
+extension Summarizing {
+    func summarize(transcript: String, noteDirectory: URL?) async throws -> SummaryResult {
+        try await summarize(transcript: transcript)
+    }
 }
 
 struct Summarizer: Summarizing {

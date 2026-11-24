@@ -191,30 +191,48 @@ struct RemoteProcessingClient: Sendable {
 
 // MARK: - Pipeline stages
 
-/// Lets the summary stage find the server job that produced a transcript, so one
-/// upload covers both stages.
-final class RemoteJobRegistry: @unchecked Sendable {
-    static let shared = RemoteJobRegistry()
+/// The server job working on a note, saved in the note's directory as `remote-job.json`.
+///
+/// Why it exists: the app only polls the server while it is running, and iOS suspends or
+/// kills it during long jobs. Without a saved record, the next launch would re-upload the
+/// whole recording, and if the transcript was already saved, ask the server to summarize
+/// it a second time. With it, the app asks the server for the job it already started:
+///
+/// - `RemoteTranscriber` writes the record as soon as the upload returns, before polling,
+///   and on the next run resumes that job instead of uploading again.
+/// - `RemoteSummarizer` reuses the same job's summary, so one upload covers both stages,
+///   in the same launch or a later one.
+///
+/// The record goes away with the note (the whole directory is deleted) and is not part of
+/// any export. A missing, unreadable or other-server record just means "no known job".
+struct RemoteJobRecord: Codable, Equatable {
+    static let fileName = "remote-job.json"
 
-    private let lock = NSLock()
-    private var jobIDs: [String: String] = [:]
-    private var order: [String] = []
+    /// `RemoteProcessingClient.baseURL`, so a record from another server is ignored.
+    var server: String
+    var jobId: String
+    /// Whether the job was asked to summarize as well as transcribe.
+    var wantSummary: Bool
 
-    func remember(jobID: String, forTranscript transcript: String) {
-        lock.lock(); defer { lock.unlock() }
-        let key = Self.key(transcript)
-        if jobIDs[key] == nil { order.append(key) }
-        jobIDs[key] = jobID
-        while order.count > 32 { jobIDs[order.removeFirst()] = nil }
+    /// The note's record for `server`, if there is one.
+    static func read(in noteDirectory: URL, server: URL) -> RemoteJobRecord? {
+        let url = noteDirectory.appendingPathComponent(fileName)
+        guard let data = try? Data(contentsOf: url),
+              let record = try? JSONDecoder().decode(RemoteJobRecord.self, from: data),
+              record.server == server.absoluteString else {
+            return nil
+        }
+        return record
     }
 
-    func jobID(forTranscript transcript: String) -> String? {
-        lock.lock(); defer { lock.unlock() }
-        return jobIDs[Self.key(transcript)]
+    /// Best effort: if the write fails, the next run uploads again, as it would without a record.
+    func write(in noteDirectory: URL) {
+        guard let data = try? JSONEncoder().encode(self) else { return }
+        try? data.write(to: noteDirectory.appendingPathComponent(Self.fileName), options: .atomic)
     }
 
-    private static func key(_ transcript: String) -> String {
-        "\(transcript.utf8.count):\(transcript.hashValue)"
+    static func delete(in noteDirectory: URL) {
+        try? FileManager.default.removeItem(at: noteDirectory.appendingPathComponent(fileName))
     }
 }
 
@@ -261,7 +279,6 @@ struct RemotePolling: Sendable {
 
 struct RemoteTranscriber: Transcribing {
     var client: RemoteProcessingClient
-    var registry: RemoteJobRegistry = .shared
     var polling = RemotePolling()
     /// Ask the server for a fresh run even if it has results for this audio.
     var force = false
@@ -273,23 +290,51 @@ struct RemoteTranscriber: Transcribing {
             throw TranscriberError.missingAudio
         }
         let noteDirectory = audioURL.deletingLastPathComponent()
-        let submitted = try await client.submitAudio(
-            fileURL: audioURL,
-            clientRef: noteDirectory.lastPathComponent,
-            title: Self.recordingLabel(in: noteDirectory),
-            force: force,
-            summarize: wantSummary
-        )
+
+        let started: RemoteJob
+        if !force, let known = try await knownJob(in: noteDirectory) {
+            started = known
+        } else {
+            started = try await client.submitAudio(
+                fileURL: audioURL,
+                clientRef: noteDirectory.lastPathComponent,
+                title: Self.recordingLabel(in: noteDirectory),
+                force: force,
+                summarize: wantSummary
+            )
+            // Saved before polling, so a kill while the server works can still be resumed.
+            RemoteJobRecord(server: client.baseURL.absoluteString, jobId: started.id, wantSummary: wantSummary)
+                .write(in: noteDirectory)
+        }
+
         let job = try await polling.wait(
-            for: submitted, client: client, timeout: polling.transcriptTimeout, what: "transcription"
+            for: started, client: client, timeout: polling.transcriptTimeout, what: "transcription"
         ) { !($0.transcript ?? "").isEmpty }
         let transcript = (job.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !transcript.isEmpty else { throw TranscriberError.emptyTranscript }
-        if wantSummary {
-            // Lets the summary stage pick up this same job instead of submitting the text again.
-            registry.remember(jobID: job.id, forTranscript: transcript)
-        }
         return transcript
+    }
+
+    /// The job this note already has on the server, or nil when the audio must be uploaded.
+    /// A job the server no longer has (purged, or its data wiped) or one that failed is
+    /// forgotten. Other errors (bad token, network, server busy) are thrown and the record
+    /// is kept, so a retry resumes the job instead of uploading the recording again.
+    private func knownJob(in noteDirectory: URL) async throws -> RemoteJob? {
+        guard let record = RemoteJobRecord.read(in: noteDirectory, server: client.baseURL),
+              record.wantSummary == wantSummary else {
+            return nil
+        }
+        do {
+            let job = try await client.job(id: record.jobId)
+            if job.status == "failed" {
+                RemoteJobRecord.delete(in: noteDirectory)
+                return nil
+            }
+            return job
+        } catch RemoteProcessingError.server(404, _) {
+            RemoteJobRecord.delete(in: noteDirectory)
+            return nil
+        }
     }
 
     /// The note's label, so jobs are recognisable in the server's web UI.
@@ -305,20 +350,31 @@ struct RemoteTranscriber: Transcribing {
 
 struct RemoteSummarizer: Summarizing {
     var client: RemoteProcessingClient
-    var registry: RemoteJobRegistry = .shared
     var polling = RemotePolling()
     var force = false
 
     func summarize(transcript: String) async throws -> SummaryResult {
+        try await summarize(transcript: transcript, noteDirectory: nil)
+    }
+
+    func summarize(transcript: String, noteDirectory: URL?) async throws -> SummaryResult {
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .unavailable(reason: "Empty transcript") }
 
         let first: RemoteJob
-        if let jobID = registry.jobID(forTranscript: trimmed) {
+        let reused: Bool
+        if let noteDirectory, let known = try await knownJob(for: trimmed, in: noteDirectory) {
             // The job that transcribed this recording is also summarizing it.
-            first = try await client.job(id: jobID)
+            first = known
+            reused = true
         } else {
-            first = try await client.submitTranscript(trimmed, clientRef: "", title: "", force: force)
+            first = try await client.submitTranscript(
+                trimmed,
+                clientRef: noteDirectory?.lastPathComponent ?? "",
+                title: noteDirectory.map(RemoteTranscriber.recordingLabel(in:)) ?? "",
+                force: force
+            )
+            reused = false
         }
         let job = try await polling.wait(
             for: first, client: client, timeout: polling.summaryTimeout, what: "summary"
@@ -327,7 +383,39 @@ struct RemoteSummarizer: Summarizing {
         if let summary = job.summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
             return .text(summary)
         }
+        if reused, let noteDirectory {
+            // The server finished this job without a summary (its model call failed, say), and
+            // it never will have one. Forget it so a later pass submits the transcript instead.
+            RemoteJobRecord.delete(in: noteDirectory)
+        }
         return .unavailable(reason: job.summaryError ?? "The remote server returned no summary")
+    }
+
+    /// The note's server job, if it can supply the summary for `transcript`.
+    private func knownJob(for transcript: String, in noteDirectory: URL) async throws -> RemoteJob? {
+        guard let record = RemoteJobRecord.read(in: noteDirectory, server: client.baseURL),
+              record.wantSummary else {
+            return nil
+        }
+        let job: RemoteJob
+        do {
+            job = try await client.job(id: record.jobId)
+        } catch RemoteProcessingError.server(404, _) {
+            RemoteJobRecord.delete(in: noteDirectory)
+            return nil
+        }
+        if job.status == "failed" {
+            RemoteJobRecord.delete(in: noteDirectory)
+            return nil
+        }
+        // Only a job that produced this exact transcript may supply its summary. After an
+        // on-device fallback the note holds a different transcript, and the server job's
+        // summary would describe text the note doesn't contain. Both sides trim whitespace,
+        // so a job that did produce it compares equal.
+        guard job.transcript?.trimmingCharacters(in: .whitespacesAndNewlines) == transcript else {
+            return nil
+        }
+        return job
     }
 }
 
@@ -352,8 +440,13 @@ struct FallbackSummarizer: Summarizing {
     var fallback: any Summarizing
 
     func summarize(transcript: String) async throws -> SummaryResult {
+        try await summarize(transcript: transcript, noteDirectory: nil)
+    }
+
+    /// Passes the note directory on to the primary (remote) engine.
+    func summarize(transcript: String, noteDirectory: URL?) async throws -> SummaryResult {
         do {
-            let result = try await primary.summarize(transcript: transcript)
+            let result = try await primary.summarize(transcript: transcript, noteDirectory: noteDirectory)
             if case .text = result { return result }
         } catch is CancellationError {
             throw CancellationError()

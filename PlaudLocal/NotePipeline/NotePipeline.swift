@@ -111,7 +111,7 @@ struct NotePipeline {
         } else if !summaryDone {
             meta.summaryStatus = .running
             try store.updateMetadata(meta)
-            let result = await summarizeWithRetry(transcript: transcript)
+            let result = await summarizeWithRetry(transcript: transcript, noteId: meta.id)
             switch result {
             case let .text(summary):
                 try store.writeSummary(noteId: meta.id, text: summary)
@@ -257,7 +257,7 @@ struct NotePipeline {
             if options.summarize {
                 meta.summaryStatus = .running
                 try store.updateMetadata(meta)
-                switch await summarizeWithRetry(transcript: transcript) {
+                switch await summarizeWithRetry(transcript: transcript, noteId: meta.id) {
                 case let .text(summary):
                     try store.writeSummary(noteId: meta.id, text: summary)
                     summaryText = summary
@@ -296,20 +296,22 @@ struct NotePipeline {
     }
 
     /// One opaque `.unavailable` with a retryable reason gets a second full pass after backoff.
-    private func summarizeWithRetry(transcript: String) async -> SummaryResult {
+    /// The note directory lets the remote engine reuse the server job that transcribed this note.
+    private func summarizeWithRetry(transcript: String, noteId: String) async -> SummaryResult {
+        let noteDirectory = store.noteDirectory(id: noteId)
         do {
-            let first = try await summarizer.summarize(transcript: transcript)
+            let first = try await summarizer.summarize(transcript: transcript, noteDirectory: noteDirectory)
             if case let .unavailable(reason) = first,
                PipelineRecovery.isRetryableSkipReason("Summary unavailable: \(reason)") {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                return try await summarizer.summarize(transcript: transcript)
+                return try await summarizer.summarize(transcript: transcript, noteDirectory: noteDirectory)
             }
             return first
         } catch {
             if PipelineRetry.isRetryable(error) {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 do {
-                    return try await summarizer.summarize(transcript: transcript)
+                    return try await summarizer.summarize(transcript: transcript, noteDirectory: noteDirectory)
                 } catch {
                     return .unavailable(reason: error.localizedDescription)
                 }
