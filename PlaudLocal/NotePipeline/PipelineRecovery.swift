@@ -92,7 +92,12 @@ enum PipelineRecovery {
                 changed = true
             }
 
-            if meta.transcriptStatus == .failed, hasAudio {
+            // A failed transcription is retried once per launch, not on every Library visit.
+            // Audio with no speech (a few seconds of silence, a pocket bump) fails the same way
+            // every time, and in remote mode each retry uploads the recording again. A failure
+            // that was only temporary still gets its retry at the next launch. (The once-per-launch
+            // allowance is per note and shared with the stale summary/poster retry below.)
+            if meta.transcriptStatus == .failed, hasAudio, PipelineActivity.shared.claimFailureRetry(meta.id) {
                 meta.transcriptStatus = .pending
                 changed = true
             }
@@ -109,8 +114,8 @@ enum PipelineRecovery {
                 continue
             }
 
-            let wantsTranscript = hasAudio
-                && (meta.transcriptStatus == .pending || meta.transcriptStatus == .failed)
+            // A failure gets its one retry per launch through the reset to .pending above.
+            let wantsTranscript = hasAudio && meta.transcriptStatus == .pending
             let transcriptReady = meta.transcriptStatus == .done && hasTranscript
             // Retryable skips were reset to .pending above; a permanent skip stays skipped.
             let wantsSummary = transcriptReady

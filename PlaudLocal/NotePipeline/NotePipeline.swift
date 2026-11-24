@@ -93,7 +93,10 @@ struct NotePipeline {
                 meta.transcriptStatus = .done
                 try store.updateMetadata(meta)
             } catch {
-                meta.transcriptStatus = .failed
+                // A cancelled pass (Library re-appearing or pull-to-refresh cancels the running
+                // recovery) didn't fail: leave it pending so the next visit resumes it, rather
+                // than spending the once-per-launch retry that failed transcriptions get.
+                meta.transcriptStatus = (error is CancellationError || Task.isCancelled) ? .pending : .failed
                 try? store.updateMetadata(meta)
                 throw error
             }
