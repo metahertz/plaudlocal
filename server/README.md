@@ -32,6 +32,8 @@ Without Docker: `PLAUD_REMOTE_DATA_DIR=./data python -m plaud_remote` (Python 3.
    endpoint. The server posts each recording to `<base URL>/audio/transcriptions`.
    Examples: [Speaches](https://github.com/speaches-ai/speaches) or another
    faster-whisper server (`http://speaches:8000/v1`), or a hosted API.
+   For **transcripts with speakers**, set **Endpoint type** to *NeMo-Speech.cpp*
+   instead; see [Speaker transcripts](#speaker-transcripts).
 2. **Summarization** (optional): the base URL and model of an OpenAI-compatible
    chat endpoint, called at `<base URL>/chat/completions`. Examples: Ollama
    (`http://ollama:11434/v1`), vLLM, LM Studio, or a hosted API. Leave it empty
@@ -43,6 +45,40 @@ Without Docker: `PLAUD_REMOTE_DATA_DIR=./data python -m plaud_remote` (Python 3.
 Model endpoints must be reachable from inside the container. For a service on
 the Docker host, use `http://host.docker.internal:<port>/v1` (on Linux, add
 `extra_hosts: ["host.docker.internal:host-gateway"]` to the compose file).
+
+## Speaker transcripts
+
+With **Endpoint type** set to *NeMo-Speech.cpp, Nemotron 3.5 Transcribe*, the server sends each
+recording to NVIDIA's [NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp) serving
+[Nemotron 3.5 Transcribe](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Transcribe-30B-A4B-GGUF)
+and gets back a punctuated transcript with speakers and timestamps. It uses NeMo-Speech.cpp's
+`/chat/completions` route, because its `/audio/transcriptions` route returns lowercase text
+without punctuation when speakers are requested.
+
+- Run NeMo-Speech.cpp with the NVFP4 GGUF on a Blackwell GPU, or the IQ4_NL GGUF elsewhere,
+  with the `…-Encoder-F16.gguf` file in the same folder: it holds the speaker and timestamp parts. For
+  example, `nvcr.io/nvidia/nemo-speech.cpp:26.10 serve --asr-model <NVFP4 .gguf> --host 0.0.0.0
+  --port 9000 --read-timeout 600 --write-timeout 1800`. The default 30-second socket timeouts are
+  too short for long recordings. Set the base URL to `http://<host>:9000/v1` and the model to `salm`.
+- NeMo-Speech.cpp can't read Ogg/Opus, so the server converts each recording to FLAC with
+  `ffmpeg`. It adds about 400 MB to the image, so it's opt-in: build with
+  `PLAUD_REMOTE_WITH_FFMPEG=1 docker compose up -d --build`. Without Docker, install ffmpeg
+  yourself.
+- Up to one hour per recording. Longer ones fail with a clear message.
+- *Language* and *Prompt* are not used by this endpoint type.
+- A 21-minute, four-person meeting transcribes in about a minute on a DGX Spark.
+
+The job then carries two forms of the transcript:
+
+- `transcript`: text with one paragraph per speaker turn, `Speaker 1: …` (plain text when only one
+  speaker is heard). This is what the app stores and the summary reads; older app versions work
+  with it unchanged.
+- `transcript_json`: the structured document from
+  [issue #12](https://github.com/metahertz/plaudlocal/issues/12): speakers, and segments with
+  start/end times. Turn times are matched to the text by word position.
+
+`POST /api/v1/jobs/text` also accepts an optional `transcript_json` (for speaker transcripts made
+on the phone), stored with the job.
 
 ## HTTPS
 
@@ -184,8 +220,8 @@ All requests need `Authorization: Bearer <token>`.
 |---|---|
 | `GET /api/v1/health` | Version, and whether transcription and summarization are configured |
 | `POST /api/v1/jobs?client_ref=&title=&filename=&force=&summarize=` | Upload audio as the raw request body; `summarize=0` returns the transcript only |
-| `POST /api/v1/jobs/text` | Summarize an existing transcript: `{"transcript": "...", "title": "..."}` |
-| `GET /api/v1/jobs/<id>` | Status, transcript, summary and errors |
+| `POST /api/v1/jobs/text` | Summarize an existing transcript: `{"transcript": "...", "title": "...", "transcript_json": {...}}` (`transcript_json` optional) |
+| `GET /api/v1/jobs/<id>` | Status, transcript, summary and errors; `transcript_json` for speaker transcripts |
 | `DELETE /api/v1/jobs/<id>` | Remove a job and its data |
 
 Job `status` is one of `queued`, `transcribing`, `summarizing`, `done`, `failed`.

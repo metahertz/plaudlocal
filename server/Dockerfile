@@ -6,6 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PLAUD_REMOTE_DATA_DIR=/data \
     PLAUD_REMOTE_PORT=8080
 
+# ffmpeg is only needed by the NeMo-Speech.cpp provider (it converts Ogg/Opus uploads to FLAC) and
+# adds about 400 MB, so it's opt-in: build with WITH_FFMPEG=1 (see README, "Speaker transcripts").
+ARG WITH_FFMPEG=0
+RUN if [ "$WITH_FFMPEG" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin plaud \
     && mkdir -p /data && chown plaud:plaud /data
 

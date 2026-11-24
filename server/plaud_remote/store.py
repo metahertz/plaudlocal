@@ -47,6 +47,10 @@ _PREVIOUS_DEFAULT_MAX_CHUNK_CHARS = 24_000
 
 DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "transcription": {
+        # "openai_transcriptions": POST {base_url}/audio/transcriptions, plain text.
+        # "nemo_speech_chat": NVIDIA NeMo-Speech.cpp (Nemotron 3.5 Transcribe) with speakers;
+        # see speakers.py.
+        "provider": "openai_transcriptions",
         "base_url": "",
         "api_key": "",
         "model": "",
@@ -73,7 +77,7 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
 # Settings that change what a job produces. Secrets and timeouts are excluded,
 # so rotating a key does not invalidate previous results.
 _RESULT_KEYS = {
-    "transcription": ("base_url", "model", "language", "prompt"),
+    "transcription": ("provider", "base_url", "model", "language", "prompt"),
     "summarization": ("base_url", "model", "system_prompt", "temperature", "max_chunk_chars"),
 }
 
@@ -105,7 +109,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     error TEXT,
     summary_error TEXT,
     want_summary INTEGER NOT NULL DEFAULT 1,
-    interruptions INTEGER NOT NULL DEFAULT 0
+    interruptions INTEGER NOT NULL DEFAULT 0,
+    transcript_json TEXT
 );
 CREATE INDEX IF NOT EXISTS jobs_queue ON jobs (status, next_attempt_at, created_at);
 CREATE INDEX IF NOT EXISTS jobs_dedupe ON jobs (kind, input_hash, config_hash);
@@ -150,6 +155,8 @@ class Store:
                 conn.execute("ALTER TABLE jobs ADD COLUMN want_summary INTEGER NOT NULL DEFAULT 1")
             if "interruptions" not in columns:  # databases created before the restart limit
                 conn.execute("ALTER TABLE jobs ADD COLUMN interruptions INTEGER NOT NULL DEFAULT 0")
+            if "transcript_json" not in columns:  # databases created before speaker transcripts
+                conn.execute("ALTER TABLE jobs ADD COLUMN transcript_json TEXT")
         self._upgrade_settings()
 
     def _conn(self) -> sqlite3.Connection:
@@ -265,6 +272,10 @@ class Store:
     def config_hash(self) -> str:
         settings = self.settings()
         relevant = {s: {k: settings[s][k] for k in keys} for s, keys in _RESULT_KEYS.items()}
+        if relevant["transcription"]["provider"] == DEFAULT_SETTINGS["transcription"]["provider"]:
+            # Left out at its default so servers that never change it keep their existing hashes
+            # (and with them, reuse of jobs from before the setting existed).
+            del relevant["transcription"]["provider"]
         return hashlib.sha256(json.dumps(relevant, sort_keys=True).encode()).hexdigest()
 
     @staticmethod
@@ -302,6 +313,7 @@ class Store:
         audio_path: str | None = None,
         audio_bytes: int = 0,
         transcript: str | None = None,
+        transcript_json: str | None = None,
         want_summary: bool = True,
     ) -> dict[str, Any]:
         now = time.time()
@@ -310,11 +322,11 @@ class Store:
             conn.execute(
                 "INSERT INTO jobs (id, kind, client_ref, title, status, created_at, updated_at, "
                 "filename, content_type, audio_path, audio_bytes, input_hash, config_hash, transcript, "
-                "want_summary) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "transcript_json, want_summary) VALUES (?, ?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     job_id, kind, client_ref[:200], title[:300], now, now, filename[:200],
                     content_type[:100], audio_path, audio_bytes, input_hash, self.config_hash(),
-                    transcript, int(want_summary),
+                    transcript, transcript_json, int(want_summary),
                 ),
             )
         return self.get_job(job_id)  # type: ignore[return-value]
@@ -476,6 +488,8 @@ def _coerce(section: str, key: str, value: Any, default: Any) -> Any:
     if isinstance(default, float):
         return max(0.0, min(2.0, float(value)))
     text = str(value).strip() if key != "system_prompt" and key != "prompt" else str(value)
+    if key == "provider" and text not in ("openai_transcriptions", "nemo_speech_chat"):
+        raise ValueError("transcription provider must be openai_transcriptions or nemo_speech_chat")
     if key == "base_url":
         text = text.rstrip("/")
         if text and not text.lower().startswith(("http://", "https://")):
