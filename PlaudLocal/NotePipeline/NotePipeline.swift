@@ -77,6 +77,8 @@ struct NotePipeline {
         if let existingTranscript, !existingTranscript.isEmpty,
            meta.transcriptStatus == .done || meta.transcriptStatus == .running {
             transcript = existingTranscript
+            // A pass killed between writing the text and its speaker document left them unpaired.
+            store.commitTranscriptDocument(noteId: meta.id, transcript: transcript)
             if meta.transcriptStatus != .done {
                 meta.transcriptStatus = .done
                 try store.updateMetadata(meta)
@@ -85,14 +87,17 @@ struct NotePipeline {
             let audioURL = store.audioURL(for: meta)
             meta.transcriptStatus = .running
             try store.updateMetadata(meta)
+            store.discardPendingTranscriptDocument(noteId: meta.id)
             do {
                 transcript = try await PipelineRetry.run(attempts: 2) { _ in
                     try await transcriber.transcribe(audioURL: audioURL)
                 }
                 try store.writeTranscript(noteId: meta.id, text: transcript)
+                store.commitTranscriptDocument(noteId: meta.id, transcript: transcript)
                 meta.transcriptStatus = .done
                 try store.updateMetadata(meta)
             } catch {
+                store.discardPendingTranscriptDocument(noteId: meta.id)
                 // A cancelled pass (Library re-appearing or pull-to-refresh cancels the running
                 // recovery) didn't fail: leave it pending so the next visit resumes it, rather
                 // than spending the once-per-launch retry that failed transcriptions get.
@@ -250,9 +255,11 @@ struct NotePipeline {
         meta.briefStatus = .pending
         try store.updateMetadata(meta)
 
+        store.discardPendingTranscriptDocument(noteId: meta.id)
         do {
             let transcript = try await transcriber.transcribe(audioURL: audioURL)
             try store.writeTranscript(noteId: meta.id, text: transcript)
+            store.commitTranscriptDocument(noteId: meta.id, transcript: transcript)
             meta.transcriptStatus = .done
             try store.updateMetadata(meta)
 
@@ -286,6 +293,7 @@ struct NotePipeline {
             }
             return try await buildBriefAndPoster(meta: meta, transcript: transcript, summary: summaryText)
         } catch {
+            store.discardPendingTranscriptDocument(noteId: meta.id)
             meta.transcriptStatus = .failed
             try? store.updateMetadata(meta)
             throw error

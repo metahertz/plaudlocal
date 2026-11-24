@@ -397,6 +397,123 @@ final class RemoteProcessingTests: XCTestCase {
     }
 }
 
+
+// MARK: - Speaker transcripts (issue #12)
+
+final class TranscriptDocumentTests: XCTestCase {
+    // Shared with the server (server/tests/test_speakers.py, RENDER_FIXTURE_*): both sides must
+    // turn this document into exactly this text.
+    static let fixtureJSON = """
+    {"version": 1,
+     "speakers": [{"id": "S1", "name": "Laura", "name_source": "user"}, {"id": "S2"}],
+     "segments": [
+       {"start": null, "end": null, "speaker": null, "text": "Preamble."},
+       {"start": 0.0, "end": 2.0, "speaker": "S1", "text": "Hello."},
+       {"start": 2.0, "end": 3.0, "speaker": "S2", "text": "Hi there."}],
+     "unknown_future_key": true}
+    """
+    static let fixtureText = "Preamble.\n\nLaura: Hello.\n\nSpeaker 2: Hi there."
+
+    private func decode(_ json: String) throws -> TranscriptDocument {
+        try JSONDecoder().decode(TranscriptDocument.self, from: Data(json.utf8))
+    }
+
+    func test_shared_render_fixture_and_anonymous_rendering() throws {
+        let doc = try decode(Self.fixtureJSON)
+        XCTAssertEqual(doc.rendered(), Self.fixtureText)
+        XCTAssertEqual(doc.anonymousRendering(), "Preamble.\n\nSpeaker 1: Hello.\n\nSpeaker 2: Hi there.")
+        XCTAssertEqual(doc.speakers[0].userName, "Laura")
+    }
+
+    func test_one_speaker_is_plain_until_named() {
+        var doc = TranscriptDocument(version: 1, speakers: [.init(id: "S1")],
+                                     segments: [.init(speaker: "S1", text: "Just me.")])
+        XCTAssertEqual(doc.rendered(), "Just me.")
+        doc.speakers[0].name = "Scott"
+        doc.speakers[0].nameSource = "user"
+        XCTAssertEqual(doc.rendered(), "Scott: Just me.")
+        XCTAssertEqual(doc.anonymousRendering(), "Just me.")
+    }
+
+    func test_merge_takes_server_suggestions_but_keeps_user_names() throws {
+        var local = try decode(Self.fixtureJSON)
+        var server = local
+        server.speakers[0].name = nil
+        server.speakers[0].nameSource = nil
+        server.speakers[0].suggestion = .init(name: "Lauren", source: "llm", confidence: 0.9, evidence: "x")
+        server.speakers[1].suggestion = .init(name: "Priya", source: "llm", confidence: 0.8, evidence: "answers")
+        let merged = try XCTUnwrap(local.merging(server: server))
+        XCTAssertEqual(merged.speakers[0].userName, "Laura")
+        XCTAssertNil(merged.speakers[0].suggestion, "no suggestion next to a name the user set")
+        XCTAssertEqual(merged.speakers[1].suggestion?.name, "Priya")
+        local.segments[1].text = "A different transcript."
+        XCTAssertNil(local.merging(server: server))
+    }
+}
+
+extension RemoteProcessingTests {
+    private static let documentBody: [String: Any] = [
+        "version": 1,
+        "speakers": [["id": "S1"], ["id": "S2"]],
+        "segments": [["start": 0.0, "end": 1.0, "speaker": "S1", "text": "Hello."],
+                     ["start": 1.0, "end": 2.0, "speaker": "S2", "text": "Hi."]],
+    ]
+    private static let documentText = "Speaker 1: Hello.\n\nSpeaker 2: Hi."
+
+    func test_transcriber_leaves_the_servers_document_for_the_pipeline_and_returns_its_text() async throws {
+        let audio = try makeNoteAudio()
+        stub { method, _ in
+            if method == "POST" { return (202, ["id": "job-1", "status": "queued"]) }
+            return (200, ["id": "job-1", "status": "summarizing", "transcript": Self.documentText,
+                          "transcript_json": Self.documentBody])
+        }
+        let text = try await RemoteTranscriber(client: makeClient(), polling: fastPolling).transcribe(audioURL: audio)
+        XCTAssertEqual(text, Self.documentText, "the server's text, verbatim")
+        let pending = TranscriptDocument.read(in: audio.deletingLastPathComponent(), fileName: TranscriptDocument.pendingFileName)
+        XCTAssertEqual(pending?.anonymousRendering(), Self.documentText)
+    }
+
+    func test_an_unreadable_document_does_not_fail_the_job() async throws {
+        let audio = try makeNoteAudio()
+        stub { method, _ in
+            if method == "POST" { return (202, ["id": "job-1", "status": "queued"]) }
+            return (200, ["id": "job-1", "status": "done", "transcript": "Text.", "transcript_json": ["version": "?"]])
+        }
+        let text = try await RemoteTranscriber(client: makeClient(), polling: fastPolling).transcribe(audioURL: audio)
+        XCTAssertEqual(text, "Text.")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audio.deletingLastPathComponent()
+            .appendingPathComponent(TranscriptDocument.pendingFileName).path))
+    }
+
+    func test_summarizer_reuses_the_job_after_a_rename_and_takes_late_name_suggestions() async throws {
+        let audio = try makeNoteAudio()
+        let dir = audio.deletingLastPathComponent()
+        rememberJob(for: audio)
+        // The note as stored after transcription, then the user named Speaker 1.
+        var local = try JSONDecoder().decode(TranscriptDocument.self, from: JSONSerialization.data(withJSONObject: Self.documentBody))
+        local.speakers[0].name = "Laura"
+        local.speakers[0].nameSource = "user"
+        try local.write(in: dir)
+        var server = Self.documentBody
+        server["speakers"] = [["id": "S1", "suggestion": ["name": "Lauren", "source": "llm", "confidence": 0.9]],
+                              ["id": "S2", "suggestion": ["name": "Priya", "source": "llm", "confidence": 0.8, "evidence": "answers"]]]
+        stub { method, path in
+            if method == "GET", path == "/api/v1/jobs/job-1" {
+                return (200, ["id": "job-1", "status": "done", "transcript": Self.documentText,
+                              "summary": "From the upload.", "transcript_json": server])
+            }
+            return (404, ["error": "unexpected \(method) \(path)"])
+        }
+        let result = try await RemoteSummarizer(client: makeClient(), polling: fastPolling)
+            .summarize(transcript: local.rendered(), noteDirectory: dir)
+        XCTAssertEqual(result, .text("From the upload."), "the renamed transcript still matches its job")
+        let stored = try XCTUnwrap(TranscriptDocument.read(in: dir))
+        XCTAssertEqual(stored.speakers[0].userName, "Laura")
+        XCTAssertEqual(stored.speakers[1].suggestion?.name, "Priya")
+        XCTAssertEqual(stored.speakers[1].suggestion?.evidence, "answers")
+    }
+}
+
 private struct StubSummarizer: Summarizing {
     let result: SummaryResult
     func summarize(transcript: String) async throws -> SummaryResult { result }

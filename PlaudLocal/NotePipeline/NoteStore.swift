@@ -130,6 +130,44 @@ struct NoteStore {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// The note's speaker transcript (issue #12), if it has one.
+    func readTranscriptDocument(noteId: String) -> TranscriptDocument? {
+        TranscriptDocument.read(in: noteDirectory(id: noteId))
+    }
+
+    /// Keeps `transcript.json` in step with the `transcript` just stored as `transcript.md`.
+    ///
+    /// A pending document (written by the transcription engine) is installed only if its unnamed
+    /// rendering is exactly this transcript; an existing document is kept only if it still renders
+    /// to it (with or without the user's names). Anything else is removed, so the document never
+    /// describes a different transcript: on-device runs, the on-device fallback, older servers,
+    /// overlapping passes over one note, or a pass killed between writing the text and the document.
+    func commitTranscriptDocument(noteId: String, transcript: String) {
+        let dir = noteDirectory(id: noteId)
+        let pendingURL = dir.appendingPathComponent(TranscriptDocument.pendingFileName)
+        let finalURL = dir.appendingPathComponent(TranscriptDocument.fileName)
+        let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let pending = TranscriptDocument.read(in: dir, fileName: TranscriptDocument.pendingFileName),
+           pending.anonymousRendering() == text {
+            try? FileManager.default.removeItem(at: finalURL)
+            try? FileManager.default.moveItem(at: pendingURL, to: finalURL)
+            return
+        }
+        try? FileManager.default.removeItem(at: pendingURL)
+        if let existing = TranscriptDocument.read(in: dir),
+           existing.anonymousRendering() == text || existing.rendered() == text {
+            return
+        }
+        try? FileManager.default.removeItem(at: finalURL)
+    }
+
+    /// Before a transcription pass, or after a failed one: drop a document left from an earlier pass.
+    func discardPendingTranscriptDocument(noteId: String) {
+        try? FileManager.default.removeItem(
+            at: noteDirectory(id: noteId).appendingPathComponent(TranscriptDocument.pendingFileName)
+        )
+    }
+
     func readTranscript(noteId: String) -> String? {
         try? String(
             contentsOf: noteDirectory(id: noteId).appendingPathComponent("transcript.md"),

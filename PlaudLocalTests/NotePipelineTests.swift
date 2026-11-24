@@ -57,6 +57,90 @@ private struct CancelledTranscriber: Transcribing {
     func transcribe(audioURL: URL) async throws -> String { throw CancellationError() }
 }
 
+extension NotePipelineTests {
+    func test_a_pass_without_a_document_removes_an_old_one() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 13, duration: 5)
+        let dir = store.noteDirectory(id: meta.id)
+        try TranscriptDocument(version: 1, speakers: [], segments: [.init(text: "Old remote run.")]).write(in: dir)
+        // An on-device re-run (no speaker document) must not leave the old remote document behind.
+        let pipeline = NotePipeline(
+            store: store,
+            transcriber: FakeTranscriber(text: "new on-device text"),
+            summarizer: Summarizer(forceUnavailable: true),
+            exporter: Exporter(settings: ExportSettings.load()),
+            options: PipelineOptions(summarize: false, buildPoster: false)
+        )
+        _ = try? await pipeline.reprocess(noteId: meta.id)
+        XCTAssertEqual(store.readTranscript(noteId: meta.id), "new on-device text")
+        XCTAssertNil(store.readTranscriptDocument(noteId: meta.id))
+    }
+
+    func test_a_pass_with_a_document_commits_it() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 14, duration: 5)
+        let pipeline = NotePipeline(
+            store: store,
+            transcriber: DocumentTranscriber(),
+            summarizer: Summarizer(forceUnavailable: true),
+            exporter: Exporter(settings: ExportSettings.load()),
+            options: PipelineOptions(summarize: false, buildPoster: false)
+        )
+        _ = try? await pipeline.reprocess(noteId: meta.id)
+        XCTAssertEqual(store.readTranscriptDocument(noteId: meta.id)?.rendered(), "Speaker 1: Hi.\n\nSpeaker 2: Hello.")
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: store.noteDirectory(id: meta.id).appendingPathComponent(TranscriptDocument.pendingFileName).path))
+        XCTAssertTrue(Exporter(settings: ExportSettings.load()).packageFileNames(for: meta).contains(TranscriptDocument.fileName))
+    }
+}
+
+extension NotePipelineTests {
+    func test_a_pending_document_for_a_different_transcript_is_not_installed() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 15, duration: 5)
+        let dir = store.noteDirectory(id: meta.id)
+        let other = TranscriptDocument(version: 1, speakers: [.init(id: "S1"), .init(id: "S2")],
+                                       segments: [.init(speaker: "S1", text: "Other."), .init(speaker: "S2", text: "Pass.")])
+        try other.write(in: dir, fileName: TranscriptDocument.pendingFileName)
+        try store.writeTranscript(noteId: meta.id, text: "This pass's text.")
+        store.commitTranscriptDocument(noteId: meta.id, transcript: "This pass's text.")
+        XCTAssertNil(store.readTranscriptDocument(noteId: meta.id))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.appendingPathComponent(TranscriptDocument.pendingFileName).path))
+    }
+
+    func test_reusing_a_stored_transcript_installs_its_pending_document() async throws {
+        // A pass killed after writing transcript.md but before installing the document.
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        var meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 16, duration: 5)
+        let doc = TranscriptDocument(version: 1, speakers: [.init(id: "S1"), .init(id: "S2")],
+                                     segments: [.init(speaker: "S1", text: "Hi."), .init(speaker: "S2", text: "Hello.")])
+        try doc.write(in: store.noteDirectory(id: meta.id), fileName: TranscriptDocument.pendingFileName)
+        try store.writeTranscript(noteId: meta.id, text: doc.rendered())
+        meta.transcriptStatus = .done
+        try store.updateMetadata(meta)
+        let pipeline = NotePipeline(store: store, transcriber: FakeTranscriber(text: "unused"),
+                                    summarizer: Summarizer(forceUnavailable: true),
+                                    exporter: Exporter(settings: ExportSettings.load()),
+                                    options: PipelineOptions(summarize: false, buildPoster: false))
+        _ = try? await pipeline.enrichImportedNote(meta)
+        XCTAssertEqual(store.readTranscriptDocument(noteId: meta.id), doc)
+    }
+}
+
+/// Stands in for the remote transcriber: writes a pending document next to the audio.
+private struct DocumentTranscriber: Transcribing {
+    func transcribe(audioURL: URL) async throws -> String {
+        let doc = TranscriptDocument(version: 1, speakers: [.init(id: "S1"), .init(id: "S2")],
+                                     segments: [.init(speaker: "S1", text: "Hi."), .init(speaker: "S2", text: "Hello.")])
+        try doc.write(in: audioURL.deletingLastPathComponent(), fileName: TranscriptDocument.pendingFileName)
+        return doc.rendered()
+    }
+}
+
 struct FakeTranscriber: Transcribing {
     let text: String
     func transcribe(audioURL: URL) async throws -> String { text }
