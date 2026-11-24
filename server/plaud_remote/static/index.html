@@ -120,7 +120,7 @@
       <label>API key <input type="password" name="api_key" autocomplete="off"></label>
       <label>Temperature <input type="number" name="temperature" min="0" max="2" step="0.1"></label>
       <label>Timeout per call (seconds) <input type="number" name="timeout_seconds" min="5"></label>
-      <label>Split transcripts longer than (characters) <input type="number" name="max_chunk_chars" min="2000"></label>
+      <label>Summary limit, in characters: the most transcript sent in one request (about 4 characters per token; 200,000 needs a model context of 64k tokens). Longer transcripts are summarized in parts <input type="number" name="max_chunk_chars" min="2000"></label>
       <label class="wide">Instructions for the model
         <textarea name="system_prompt"></textarea>
       </label>

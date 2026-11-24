@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import socket
 import urllib.error
 import urllib.request
 import uuid
 from typing import Any
+
+log = logging.getLogger("plaud_remote.providers")
 
 _RETRYABLE_STATUS = {408, 425, 429, 500, 502, 503, 504}
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
@@ -157,24 +160,38 @@ def split_transcript(text: str, max_chars: int) -> list[str]:
 
 
 def summarize(config: dict[str, Any], transcript: str, title: str = "") -> str:
-    """Summarize a transcript; long ones are summarized in parts, then combined."""
+    """Summarize a transcript in one pass when it fits `max_chunk_chars`.
+
+    One pass is what produces a good meeting summary: the model sees the whole meeting and
+    can connect the end to the beginning. Longer transcripts are summarized part by part,
+    each part with as many summaries of the parts before it as fit within the limit, so
+    later parts can still refer back; then the part summaries are merged.
+    """
     system_prompt = config["system_prompt"]
     heading = f"Recording title: {title}\n\n" if title else ""
-    chunks = split_transcript(transcript, config["max_chunk_chars"])
-    if len(chunks) == 1:
+    limit = config["max_chunk_chars"]
+    if len(transcript) <= limit:
         return chat(config, system_prompt, f"{heading}Transcript:\n\n{transcript}")
 
-    partials = []
+    # Each part leaves a fifth of the limit for the summaries of the parts before it, so a
+    # part's whole request still fits the model's context. When they don't all fit, the
+    # oldest are left out first.
+    chunks = split_transcript(transcript, part_chars(limit))
+    log.warning(
+        "Transcript of %d characters is longer than the %d-character summary limit; summarizing "
+        "it in %d parts. Raise the limit (and the model's context window) to summarize it in one pass.",
+        len(transcript), limit, len(chunks),
+    )
+    partials: list[str] = []
     for index, chunk in enumerate(chunks, start=1):
-        partials.append(
-            chat(
-                config,
-                system_prompt,
-                f"{heading}This is part {index} of {len(chunks)} of a longer transcript. "
-                f"Summarize this part in detail, keeping names, numbers, decisions and action items.\n\n"
-                f"Transcript part:\n\n{chunk}",
-            )
+        earlier = _earlier_summaries(partials, budget=limit - len(chunk))
+        task = f"{heading}This is part {index} of {len(chunks)} of a longer transcript. "
+        task += "Summarize this part in detail, keeping names, numbers, decisions and action items"
+        task += (
+            ", and note where it continues or changes something from the earlier parts.\n\n" + earlier
+            if earlier else ".\n\n"
         )
+        partials.append(chat(config, system_prompt, f"{task}Transcript part:\n\n{chunk}"))
     combined = "\n\n".join(f"Part {i} summary:\n{p}" for i, p in enumerate(partials, start=1))
     return chat(
         config,
@@ -182,6 +199,24 @@ def summarize(config: dict[str, Any], transcript: str, title: str = "") -> str:
         f"{heading}Below are summaries of consecutive parts of one recording. "
         f"Merge them into a single summary of the whole recording, without mentioning the parts.\n\n{combined}",
     )
+
+
+def part_chars(limit: int) -> int:
+    """Transcript characters per part when a transcript has to be split (see summarize)."""
+    return max(1, limit * 4 // 5)
+
+
+def _earlier_summaries(partials: list[str], budget: int) -> str:
+    """The most recent part summaries that fit in `budget` characters, oldest first."""
+    kept: list[str] = []
+    used = 0
+    for number in range(len(partials), 0, -1):
+        entry = f"Part {number} summary:\n{partials[number - 1]}\n\n"
+        if used + len(entry) > budget:
+            break
+        kept.insert(0, entry)
+        used += len(entry)
+    return f"Summaries of the earlier parts, for context:\n\n{''.join(kept)}" if kept else ""
 
 
 def list_models(config: dict[str, Any]) -> list[str]:

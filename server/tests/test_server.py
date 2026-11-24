@@ -348,9 +348,17 @@ class JobTests(ServerTestCase):
         transcript = " ".join(f"Sentence number {i} is here." for i in range(250))
         _, job = self.request("POST", "/api/v1/jobs/text", body={"transcript": transcript})
         self.assertEqual(self.wait_for(job["id"])["status"], "done")
-        parts = len(providers.split_transcript(transcript, 2000))
+        parts = len(providers.split_transcript(transcript, providers.part_chars(2000)))
         self.assertGreater(parts, 1)
         self.assertEqual(len(self.fake.chat_requests), parts + 1)  # one per part, then the merge
+        # Every part after the first sees the summaries of the parts before it, and no part's
+        # request grows past the limit because of them.
+        user_texts = [request["messages"][-1]["content"] for request in self.fake.chat_requests[:parts]]
+        self.assertNotIn("earlier parts, for context", user_texts[0])
+        self.assertTrue(all("earlier parts, for context" in text for text in user_texts[1:]))
+        for text in user_texts:
+            context_and_part = text.split("Summarize this part", 1)[1]
+            self.assertLessEqual(len(context_and_part), 2000 + 200)  # limit, plus the fixed wording
 
     def test_admin_can_list_and_delete_jobs(self):
         self.configure()
@@ -483,6 +491,27 @@ class MigrationTests(unittest.TestCase):
             _, _, reopened = build(tmp, admin_password=ADMIN_PASSWORD)
             self.addCleanup(reopened.close)
             self.assertEqual(reopened.get_job(job["id"])["want_summary"], 1)
+
+
+class SummaryLimitUpgradeTests(unittest.TestCase):
+    def test_a_stored_old_default_is_raised_once_and_a_later_choice_is_kept(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, _, store = build(tmp, admin_password=ADMIN_PASSWORD)
+            # A server configured before the default was raised: the form saved 24,000.
+            config = store.settings()
+            config["summarization"]["max_chunk_chars"] = 24_000
+            store._set_raw("config", config)
+            store._set_raw("upgraded_max_chunk_chars", None)
+            store.close()
+
+            _, _, reopened = build(tmp, admin_password=ADMIN_PASSWORD)
+            self.assertEqual(reopened.settings()["summarization"]["max_chunk_chars"], 200_000)
+            reopened.update_settings({"summarization": {"max_chunk_chars": 24_000}})  # chosen on purpose
+            reopened.close()
+
+            _, _, again = build(tmp, admin_password=ADMIN_PASSWORD)
+            self.addCleanup(again.close)
+            self.assertEqual(again.settings()["summarization"]["max_chunk_chars"], 24_000)
 
 
 class SplitTests(unittest.TestCase):

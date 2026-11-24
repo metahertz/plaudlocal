@@ -48,6 +48,8 @@ Settings → Processing chooses what happens to each new recording:
 - **Remote server**: the audio is uploaded to a Plaud Remote server (see `server/`), which runs models you host or subscribe to and returns the text. The app connects over HTTPS only. Transcription and summary can each be kept on the iPhone, and "Use on-device AI if the server fails" processes a recording locally when the server can't.
 - **Audio only**: no AI; the decrypted audio is exported for your own tools.
 
+For remote summaries, the server's model needs a large enough context window to read a whole meeting at once; see [Summary model](server/README.md#summary-model): the default 200,000-character limit is sized for a model with a 64k-token context, and it suggests a model to start with.
+
 In either AI mode, "Summarize" and "Build brief and poster" switch those steps off. The brief, poster and export always run on the phone. Once a server is set up, "Transcribe & summarize" on a note lets you send that one note to the server or keep it on the iPhone, whatever the mode.
 
 ## Current limits

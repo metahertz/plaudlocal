@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import logging
 import os
 import secrets
 import sqlite3
@@ -14,12 +15,35 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+log = logging.getLogger("plaud_remote.store")
+
 DEFAULT_SYSTEM_PROMPT = (
     "You summarize transcripts of voice recordings and meetings. "
     "Write a clear, faithful summary in Markdown: a one-paragraph overview, "
     "then key points, decisions, and action items (with owners when stated). "
     "Use only what the transcript says; do not invent names, dates or facts."
 )
+
+# How much transcript the summary model is given in one request.
+#
+# A meeting summary needs the whole meeting in a single pass: a decision near the end often
+# refers back to something said at the start, and action items and concerns only make sense
+# from everything each person said. Transcripts longer than this are summarized in parts, and
+# the model then cannot connect points across those parts as well.
+#
+# 200,000 characters is about 50,000 tokens (English runs about 4 characters per token). That
+# fits a 64k-token context window with room left for the instructions, the summary itself and
+# any "thinking" tokens a reasoning model produces. It covers about 3 hours of continuous
+# talk: a busy meeting produces roughly 55,000-65,000 characters an hour. A 64k context is
+# within reach of a 32 GB Mac running a 4-bit ~27B model (see README, "Summary model").
+#
+# The summary model's own context window must be at least this large, or the model server
+# may cut the transcript short without an error. Rule of thumb for other context sizes:
+# characters = (context tokens - 10,000) x 4.
+DEFAULT_MAX_CHUNK_CHARS = 200_000
+# The default before it was raised. The settings form saves every field, so servers set up
+# earlier have this value stored even if nobody chose it; see Store._upgrade_settings.
+_PREVIOUS_DEFAULT_MAX_CHUNK_CHARS = 24_000
 
 DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
     "transcription": {
@@ -36,7 +60,7 @@ DEFAULT_SETTINGS: dict[str, dict[str, Any]] = {
         "model": "",
         "system_prompt": DEFAULT_SYSTEM_PROMPT,
         "temperature": 0.2,
-        "max_chunk_chars": 24000,
+        "max_chunk_chars": DEFAULT_MAX_CHUNK_CHARS,
         "timeout_seconds": 600,
     },
     "queue": {
@@ -126,6 +150,7 @@ class Store:
                 conn.execute("ALTER TABLE jobs ADD COLUMN want_summary INTEGER NOT NULL DEFAULT 1")
             if "interruptions" not in columns:  # databases created before the restart limit
                 conn.execute("ALTER TABLE jobs ADD COLUMN interruptions INTEGER NOT NULL DEFAULT 0")
+        self._upgrade_settings()
 
     def _conn(self) -> sqlite3.Connection:
         conn = getattr(self._local, "conn", None)
@@ -177,6 +202,29 @@ class Store:
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (key, json.dumps(value)),
             )
+
+    def _upgrade_settings(self) -> None:
+        """Once per database: replace a stored old default summary limit with the new one.
+
+        The admin form saves every field of a section, so a server configured before the
+        default was raised stores 24,000 whether or not anyone chose it, and would keep
+        summarizing hour-long meetings in parts. A value anyone sets after this upgrade,
+        including 24,000, is left alone.
+        """
+        if self._get_raw("upgraded_max_chunk_chars"):
+            return
+        saved = self._get_raw("config")
+        summarization = saved.get("summarization") if isinstance(saved, dict) else None
+        if isinstance(summarization, dict) and summarization.get("max_chunk_chars") == _PREVIOUS_DEFAULT_MAX_CHUNK_CHARS:
+            summarization["max_chunk_chars"] = DEFAULT_MAX_CHUNK_CHARS
+            self._set_raw("config", saved)
+            log.warning(
+                "Raised the summary limit from the old default of %d to %d characters, so whole "
+                "meetings are summarized in one pass. This needs a model with a 64k-token context; "
+                "if yours is smaller, lower the limit under Summarization.",
+                _PREVIOUS_DEFAULT_MAX_CHUNK_CHARS, DEFAULT_MAX_CHUNK_CHARS,
+            )
+        self._set_raw("upgraded_max_chunk_chars", True)
 
     def settings(self) -> dict[str, dict[str, Any]]:
         """Full settings, including secrets, with defaults filled in."""

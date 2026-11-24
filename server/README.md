@@ -66,11 +66,69 @@ and trusted on the phone. Two ways to provide it:
   `PLAUD_REMOTE_TLS_CERT` and `PLAUD_REMOTE_TLS_KEY` to their paths. The server
   then serves HTTPS itself on its port.
 
+## Summary model
+
+A meeting summary is only as good as what the model can see at once. A decision
+near the end often refers back to the start, and action items and concerns only
+make sense from everything each person said. So the server gives the model the
+**whole transcript in one request** whenever it fits the **Summary limit**
+under Summarization.
+
+**The default limit is 200,000 characters, sized for a model with a 64k-token
+context window.** The context window itself is set on your model server, not
+here (see below).
+
+- A busy meeting produces about 55,000-65,000 characters of transcript an hour,
+  and English is about 4 characters per token.
+- 200,000 characters is about 50,000 tokens, roughly 3 hours of continuous
+  talk. That leaves room in a 64k window for the instructions, the summary, and
+  any "thinking" a reasoning model does before it answers.
+- 64k is the smallest window that comfortably fits a 2-hour meeting
+  (about 30-35k tokens of transcript plus that headroom), and it is within reach
+  of a laptop (below).
+
+For another context size, set the limit to about
+`(context tokens - 10,000) x 4` characters. For example, a 32k model gets about
+88,000, which is roughly 1.5 hours.
+
+**The model server must actually use that context.** Many default to a smaller
+window and silently drop the rest of a long prompt, and this server cannot ask
+for a bigger one per request:
+
+- Ollama: start it with `OLLAMA_CONTEXT_LENGTH=65536`. Its default depends on
+  the version and the machine's memory, and on a laptop is often 4k or 32k
+  tokens.
+- LM Studio: set the model's context length to 65536 when loading it.
+- vLLM: `--max-model-len 65536`. llama.cpp: `-c 65536`.
+
+**Which model** is your choice; any OpenAI-compatible chat model works. As a
+starting point we suggest **Qwen3.8-27B in a 4-bit build** for your runtime.
+Only a quarter of its layers use full attention, which keeps a 64k context
+cheap (an estimated 4 GB on top of roughly 16 GB of weights), so it fits on a
+32 GB Mac. Try others and keep whichever summarizes your meetings best.
+Bigger hosted models work too: raise the limit up to the maximum of 400,000.
+
+A whole meeting in one request can take several minutes on a laptop, so raise
+**Timeout per call** if summaries time out. The 4-characters-per-token figure
+is for English; other languages can use more tokens per character, so leave
+more headroom.
+
+Transcripts over the limit are still summarized: part by part, each part with
+as many summaries of the parts before it as fit within the limit, then merged.
+The server logs a warning when that happens, because a split summary is
+weaker.
+
+Servers set up before this default was raised had 24,000 saved; the server
+raises a saved 24,000 to 200,000 once, on upgrade, and logs that it did. A
+value you set afterwards is kept. If your model's context is smaller than 64k
+tokens, set the limit to match it.
+
 ## How a recording is processed
 
 1. The app uploads the audio (`POST /api/v1/jobs`) and gets a job back.
-2. A worker transcribes it, then summarizes the transcript. Transcripts longer
-   than the configured limit are summarized in parts and then merged.
+2. A worker transcribes it, then summarizes the transcript in one pass. Only
+   transcripts longer than the summary limit are summarized in parts (see
+   [Summary model](#summary-model)).
 3. The app polls the job (`GET /api/v1/jobs/<id>`) and stores the transcript
    and summary in the note. The brief, poster and export still run on the phone.
 
