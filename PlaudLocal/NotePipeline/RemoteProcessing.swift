@@ -237,12 +237,28 @@ struct RemoteJobRecord: Codable, Equatable {
 }
 
 /// How long and how often to poll the server for a job.
+///
+/// Checks start quickly and back off (3 s, 6 s, 12 s, then every 15 s), because remote jobs
+/// take minutes and, once the transcript exists, every check returns the whole transcript.
+/// A finished result is therefore noticed within 15 s at most.
 struct RemotePolling: Sendable {
+    /// Wait before the first check, doubled after each check up to `maxIntervalNanoseconds`.
     var intervalNanoseconds: UInt64 = 3_000_000_000
+    var maxIntervalNanoseconds: UInt64 = 15_000_000_000
     var transcriptTimeout: TimeInterval = 2 * 60 * 60
     var summaryTimeout: TimeInterval = 30 * 60
     /// Consecutive failed status checks tolerated (brief network drops) before giving up.
     var maxConsecutiveErrors = 5
+
+    /// The wait before check number `checks` (0-based).
+    func delay(afterChecks checks: Int) -> UInt64 {
+        var delay = intervalNanoseconds
+        for _ in 0..<checks {
+            if delay >= maxIntervalNanoseconds / 2 { return maxIntervalNanoseconds }
+            delay *= 2
+        }
+        return min(delay, maxIntervalNanoseconds)
+    }
 
     /// Poll `jobID` until `isReady` accepts it. Throws when the job fails or `timeout` passes.
     func wait(
@@ -254,6 +270,7 @@ struct RemotePolling: Sendable {
     ) async throws -> RemoteJob {
         var job = first
         var errors = 0
+        var checks = 0
         let deadline = Date().addingTimeInterval(timeout)
         while true {
             if isReady(job) { return job }
@@ -261,7 +278,8 @@ struct RemotePolling: Sendable {
                 throw RemoteProcessingError.jobFailed(job.error ?? "unknown error")
             }
             guard Date() < deadline else { throw RemoteProcessingError.timedOut(what) }
-            try await Task.sleep(nanoseconds: intervalNanoseconds)
+            try await Task.sleep(nanoseconds: delay(afterChecks: checks))
+            checks += 1
             do {
                 job = try await client.job(id: job.id)
                 errors = 0

@@ -22,7 +22,7 @@ final class RemoteProcessingTests: XCTestCase {
         )
     }
 
-    private let fastPolling = RemotePolling(intervalNanoseconds: 1_000_000)
+    private let fastPolling = RemotePolling(intervalNanoseconds: 1_000_000, maxIntervalNanoseconds: 1_000_000)
 
     /// Routes stubbed requests; `respond` returns a status code and JSON body.
     private func stub(_ respond: @escaping (_ method: String, _ path: String) -> (Int, [String: Any])) {
@@ -336,6 +336,13 @@ final class RemoteProcessingTests: XCTestCase {
             XCTAssertEqual(error as? RemoteProcessingError, .server(status: 503, message: "busy"))
             XCTAssertEqual(PipelineRetry.classify(error), .retryable)
         }
+    }
+
+    func test_polling_backs_off_to_every_15_seconds() {
+        let polling = RemotePolling()
+        let seconds = (0..<6).map { Double(polling.delay(afterChecks: $0)) / 1_000_000_000 }
+        XCTAssertEqual(seconds, [3, 6, 12, 15, 15, 15])
+        XCTAssertEqual(polling.delay(afterChecks: 10_000), 15_000_000_000, "no overflow on very long jobs")
     }
 
     func test_polling_times_out() async throws {
