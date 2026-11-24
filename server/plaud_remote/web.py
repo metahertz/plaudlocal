@@ -427,3 +427,11 @@ class Server(ThreadingHTTPServer):
     def __init__(self, address: tuple[str, int], app: Application):
         super().__init__(address, Handler)
         self.app = app
+
+    def process_request_thread(self, request, client_address) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            # Each TCP connection gets its own thread, and the store gives each thread its
+            # own SQLite connection; close it here or it stays open until the server stops.
+            self.app.store.release_thread_connection()

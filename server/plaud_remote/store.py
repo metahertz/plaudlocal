@@ -132,6 +132,23 @@ class Store:
                 self._connections.append(conn)
         return conn
 
+    def release_thread_connection(self) -> None:
+        """Close the calling thread's connection, if it has one.
+
+        Worker threads live as long as the server and keep theirs. HTTP handler threads
+        are started per TCP connection, so the server calls this when one finishes;
+        otherwise each connection would leave a SQLite connection (and its files) open
+        until the server stops.
+        """
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            return
+        self._local.conn = None
+        with self._connections_lock:
+            if conn in self._connections:
+                self._connections.remove(conn)
+        conn.close()
+
     def close(self) -> None:
         """Close every connection. Call only after the workers and server have stopped."""
         with self._connections_lock:

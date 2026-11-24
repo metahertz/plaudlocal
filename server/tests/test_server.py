@@ -423,6 +423,33 @@ class SocketSmokeTest(unittest.TestCase):
                 server.shutdown()
                 server.server_close()
 
+    def test_finished_connections_do_not_leave_database_connections_open(self):
+        # Each TCP connection runs on its own thread, and the store opens a SQLite
+        # connection per thread. Those must be closed when the thread ends.
+        with tempfile.TemporaryDirectory() as tmp:
+            app, _, store = build(tmp, admin_password=ADMIN_PASSWORD)
+            self.addCleanup(store.close)
+            try:
+                server = Server(("127.0.0.1", 0), app)
+            except PermissionError:
+                self.skipTest("this environment does not allow binding a socket")
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            try:
+                port = server.server_address[1]
+                before = len(store._connections)
+                for _ in range(20):  # a wrong token still reads the store, so it counts too
+                    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+                    conn.request("GET", "/api/v1/health", headers={"Authorization": "Bearer wrong"})
+                    self.assertEqual(conn.getresponse().status, 401)
+                    conn.close()
+                deadline = time.monotonic() + 5  # handler threads finish just after replying
+                while len(store._connections) > before and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                self.assertEqual(len(store._connections), before)
+            finally:
+                server.shutdown()
+                server.server_close()
+
 
 class MigrationTests(unittest.TestCase):
     def test_older_database_gains_the_want_summary_column(self):
