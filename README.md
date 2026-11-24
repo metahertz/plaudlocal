@@ -57,7 +57,7 @@ In either AI mode, "Summarize" and "Build brief and poster" switch those steps o
 - Foundation Models summarization returns `.unavailable` when Apple Intelligence is missing
 - Wi-Fi Fast Transfer needs a manual join: the app shows the Note Pro hotspot's SSID and password, and you join it in Settings (automatic joining needs the Hotspot Configuration entitlement, which is not enabled)
 - Deleting recordings from the device is opt-in ("Delete from device after download")
-- Remote server: the app collects results only while it is open; the server keeps working, and the app picks the result up the next time it processes that note
+- Remote server: the app collects results only while it is open; the server keeps working, and the app picks the result up the next time it processes that note. Each note remembers its server job in `remote-job.json`, so that pick-up is a status check, not a second upload or a second summary
 - Remote server: the address must be `https://` with a certificate the iPhone trusts (a self-signed one needs its root installed and trusted on the phone)
 - Remote server: the app and server are covered by unit tests on each side but have not yet been run against each other
 
