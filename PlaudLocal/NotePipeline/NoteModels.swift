@@ -235,3 +235,107 @@ struct MeetingBrief: Codable, Equatable, Hashable {
         return groups
     }
 }
+
+// MARK: - Speaker transcripts (issue #12, format version 1)
+
+/// A speaker-attributed transcript, stored next to `transcript.md` as `transcript.json`.
+///
+/// When a note has one, `transcript.md` is a rendering of it (`rendered()`): one paragraph per
+/// speaker turn, labelled with the speaker's confirmed name or "Speaker N". The Plaud Remote server
+/// (speaker transcripts, PR #19: `server/plaud_remote/speakers.py`, `render`) renders the same way,
+/// so its `transcript` text equals `anonymousRendering()` of the document it sends. Keep the two
+/// renderers in step: the same fixture is copied into TranscriptDocumentTests and test_speakers.py.
+struct TranscriptDocument: Codable, Equatable {
+    static let fileName = "transcript.json"
+    /// Written by a transcription engine during a pass; committed or discarded by the pipeline.
+    static let pendingFileName = "transcript.pending.json"
+
+    var version: Int
+    var language: String?
+    var duration: Double?
+    var source: Source?
+    var speakers: [Speaker]
+    var segments: [Segment]
+
+    struct Source: Codable, Equatable {
+        var provider: String?
+        var model: String?
+        var diarized: Bool?
+    }
+
+    struct Suggestion: Codable, Equatable {
+        var name: String
+        var source: String?
+        var confidence: Double?
+        var evidence: String?
+    }
+
+    struct Speaker: Codable, Equatable {
+        var id: String
+        var name: String?
+        var nameSource: String?
+        var suggestion: Suggestion?
+
+        enum CodingKeys: String, CodingKey {
+            case id, name, suggestion
+            case nameSource = "name_source"
+        }
+
+        /// A name the user typed or accepted; automated steps never replace it.
+        var userName: String? {
+            guard nameSource == "user", let name, !name.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+            return name
+        }
+    }
+
+    struct Segment: Codable, Equatable {
+        var start: Double?
+        var end: Double?
+        var speaker: String?
+        var text: String
+    }
+
+    /// The document in `noteDirectory` (`fileName` by default), or nil if missing or unreadable.
+    static func read(in noteDirectory: URL, fileName: String = fileName) -> TranscriptDocument? {
+        guard let data = try? Data(contentsOf: noteDirectory.appendingPathComponent(fileName)) else { return nil }
+        return try? JSONDecoder().decode(TranscriptDocument.self, from: data)
+    }
+
+    func write(in noteDirectory: URL, fileName: String = fileName) throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(self).write(to: noteDirectory.appendingPathComponent(fileName), options: .atomic)
+    }
+
+    /// `transcript.md` for this document.
+    func rendered() -> String { render(names: true) }
+
+    /// The rendering without any names: what the server sent as the job's `transcript`.
+    func anonymousRendering() -> String { render(names: false) }
+
+    private func render(names: Bool) -> String {
+        let byId = Dictionary(speakers.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let label: (Speaker) -> String? = { names ? ($0.name?.isEmpty == false ? $0.name : nil) : nil }
+        // One speaker without a name: plain text ("Speaker 1:" on every line of a voice memo is noise).
+        let singleUnnamed = speakers.count == 1 && label(speakers[0]) == nil
+        return segments.compactMap { segment -> String? in
+            let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            guard let id = segment.speaker, let speaker = byId[id], !singleUnnamed else { return text }
+            return "\(label(speaker) ?? "Speaker \(speaker.id.dropFirst())"): \(text)"
+        }.joined(separator: "\n\n")
+    }
+
+    /// This document updated from a newer copy of the same transcript from the server: takes its
+    /// name suggestions, but never touches a name the user set. Returns nil if `server` is a
+    /// different transcript.
+    func merging(server: TranscriptDocument) -> TranscriptDocument? {
+        guard server.anonymousRendering() == anonymousRendering() else { return nil }
+        var merged = self
+        for index in merged.speakers.indices where merged.speakers[index].userName == nil {
+            let id = merged.speakers[index].id
+            merged.speakers[index].suggestion = server.speakers.first { $0.id == id }?.suggestion
+        }
+        return merged
+    }
+}

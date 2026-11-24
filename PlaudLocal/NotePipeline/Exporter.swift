@@ -98,7 +98,7 @@ struct Exporter {
         if settings.audioOnlyMode || note.audioOnlyExport {
             return ["audio.ogg", "metadata.json", "README.txt"]
         }
-        var names = ["audio.ogg", "transcript.md", "summary.md", "brief.json", "metadata.json"]
+        var names = ["audio.ogg", "transcript.md", TranscriptDocument.fileName, "summary.md", "brief.json", "metadata.json"]
         if let poster = note.posterFileName {
             names.append(poster)
         }

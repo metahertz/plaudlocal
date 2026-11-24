@@ -106,10 +106,31 @@ struct RemoteJob: Decodable, Equatable {
     var summary: String?
     var error: String?
     var summaryError: String?
+    /// Speaker transcript (issue #12) from servers that produce one. An unreadable document is
+    /// ignored rather than failing the job.
+    var transcriptDocument: TranscriptDocument?
 
     enum CodingKeys: String, CodingKey {
         case id, status, transcript, summary, error
         case summaryError = "summary_error"
+        case transcriptDocument = "transcript_json"
+    }
+
+    init(id: String, status: String, transcript: String? = nil, summary: String? = nil,
+         error: String? = nil, summaryError: String? = nil, transcriptDocument: TranscriptDocument? = nil) {
+        (self.id, self.status, self.transcript, self.summary) = (id, status, transcript, summary)
+        (self.error, self.summaryError, self.transcriptDocument) = (error, summaryError, transcriptDocument)
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        status = try c.decode(String.self, forKey: .status)
+        transcript = try c.decodeIfPresent(String.self, forKey: .transcript)
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
+        error = try c.decodeIfPresent(String.self, forKey: .error)
+        summaryError = try c.decodeIfPresent(String.self, forKey: .summaryError)
+        transcriptDocument = try? c.decodeIfPresent(TranscriptDocument.self, forKey: .transcriptDocument)
     }
 
     var isFinished: Bool { status == "done" || status == "failed" }
@@ -145,12 +166,17 @@ struct RemoteProcessingClient: Sendable {
     }
 
     /// Ask the server to summarize a transcript the app already has.
-    func submitTranscript(_ transcript: String, clientRef: String, title: String, force: Bool = false) async throws -> RemoteJob {
+    func submitTranscript(
+        _ transcript: String, clientRef: String, title: String, force: Bool = false,
+        document: TranscriptDocument? = nil
+    ) async throws -> RemoteJob {
         var request = makeRequest("POST", path: "api/v1/jobs/text")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "transcript": transcript, "client_ref": clientRef, "title": title, "force": force,
-        ] as [String: Any])
+        var body: [String: Any] = ["transcript": transcript, "client_ref": clientRef, "title": title, "force": force]
+        if let document, let object = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(document)) {
+            body["transcript_json"] = object
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         return try await send(request)
     }
 
@@ -330,6 +356,9 @@ struct RemoteTranscriber: Transcribing {
         ) { !($0.transcript ?? "").isEmpty }
         let transcript = (job.transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !transcript.isEmpty else { throw TranscriberError.emptyTranscript }
+        // The speaker document goes in as "pending"; the pipeline makes it the note's
+        // transcript.json once it has stored this exact transcript (NoteStore.commitTranscriptDocument).
+        try? job.transcriptDocument?.write(in: noteDirectory, fileName: TranscriptDocument.pendingFileName)
         return transcript
     }
 
@@ -378,10 +407,14 @@ struct RemoteSummarizer: Summarizing {
     func summarize(transcript: String, noteDirectory: URL?) async throws -> SummaryResult {
         let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .unavailable(reason: "Empty transcript") }
+        let document = noteDirectory.flatMap { TranscriptDocument.read(in: $0) }
 
         let first: RemoteJob
         let reused: Bool
-        if let noteDirectory, let known = try await knownJob(for: trimmed, in: noteDirectory) {
+        // With a speaker document, the server's text is the document's anonymous rendering, so a
+        // job still matches after the user has named speakers in transcript.md.
+        let serverText = document?.anonymousRendering() ?? trimmed
+        if let noteDirectory, let known = try await knownJob(for: serverText, in: noteDirectory) {
             // The job that transcribed this recording is also summarizing it.
             first = known
             reused = true
@@ -390,13 +423,22 @@ struct RemoteSummarizer: Summarizing {
                 trimmed,
                 clientRef: noteDirectory?.lastPathComponent ?? "",
                 title: noteDirectory.map(RemoteTranscriber.recordingLabel(in:)) ?? "",
-                force: force
+                force: force,
+                document: document
             )
             reused = false
         }
         let job = try await polling.wait(
             for: first, client: client, timeout: polling.summaryTimeout, what: "summary"
         ) { $0.status == "done" }
+
+        // Name suggestions arrive after the transcript (the app stopped reading the job then), so
+        // take them now; names the user set are kept (TranscriptDocument.merging).
+        // Re-read: the user may have named someone while this job was running.
+        if let noteDirectory, let local = TranscriptDocument.read(in: noteDirectory), let server = job.transcriptDocument,
+           let merged = local.merging(server: server), merged != local {
+            try? merged.write(in: noteDirectory)
+        }
 
         if let summary = job.summary?.trimmingCharacters(in: .whitespacesAndNewlines), !summary.isEmpty {
             return .text(summary)
