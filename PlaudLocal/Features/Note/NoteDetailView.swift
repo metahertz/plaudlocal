@@ -127,13 +127,17 @@ struct NoteDetailView: View {
                 }
             }
 
-            Section("Transcript") {
+            Section {
                 Text(transcript.isEmpty ? "Not transcribed yet" : transcript)
                     .font(.body)
+            } header: {
+                sectionHeader("Transcript", sharing: transcript)
             }
-            Section("Summary") {
+            Section {
                 Text(summary.isEmpty ? "No summary" : summary)
                     .font(.body)
+            } header: {
+                sectionHeader("Summary", sharing: summary)
             }
         }
         .navigationTitle(meta?.title ?? "Note")
@@ -220,6 +224,29 @@ struct NoteDetailView: View {
             Text(title).font(.subheadline.weight(.semibold))
             ForEach(items, id: \.self) { item in
                 Text("• \(item)")
+            }
+        }
+    }
+
+    /// A section title with a share button (iOS share sheet: Copy, Messages, Mail, Notes, AirDrop…)
+    /// once the section has text to share.
+    @ViewBuilder
+    private func sectionHeader(_ title: String, sharing text: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                ShareLink(
+                    item: text,
+                    subject: Text("\(title): \(meta?.libraryHeadline ?? "Recording")"),
+                    preview: SharePreview("\(title): \(meta?.libraryHeadline ?? "Recording")")
+                ) {
+                    Image(systemName: "square.and.arrow.up")
+                        .imageScale(.large)
+                        .frame(minWidth: 44, minHeight: 32)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Share \(title.lowercased())")
             }
         }
     }
