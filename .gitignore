@@ -8,3 +8,6 @@ build-device/
 __pycache__/
 *.pyc
 .aio-builds/
+
+# Local secrets/settings for docker compose (e.g. PLAUD_REMOTE_ADMIN_PASSWORD; see server/README.md)
+.env
