@@ -46,7 +46,7 @@ struct NoteDetailView: View {
                     LabeledContent("Audio", value: ByteCountFormatter.string(fromByteCount: Int64(audioBytes), countStyle: .file))
                     LabeledContent("ASR", value: meta.transcriptStatus.rawValue)
                     LabeledContent("Summary", value: meta.summaryStatus.rawValue)
-                    LabeledContent("Poster", value: meta.briefStatus.rawValue)
+                    LabeledContent("Brief", value: meta.briefStatus.rawValue)
                     if meta.audioOnlyExport {
                         Text("Imported as audio-only — transcription and summary were skipped.")
                             .font(.footnote)
@@ -77,12 +77,13 @@ struct NoteDetailView: View {
                             .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
                     }
                     briefPreview(brief)
-                    Button {
-                        sharePoster()
-                    } label: {
-                        Label("Share poster", systemImage: "square.and.arrow.up")
+                    if posterURL != nil {  // no poster when "Make poster image" is off
+                        Button {
+                            sharePoster()
+                        } label: {
+                            Label("Share poster", systemImage: "square.and.arrow.up")
+                        }
                     }
-                    .disabled(posterURL == nil)
                 }
             }
 
@@ -413,8 +414,8 @@ struct NoteDetailView: View {
             meta = updated
             load()
             statusMessage = updated.briefStatus == .done
-                ? "Transcript, summary, and poster updated"
-                : "Transcript updated (summary \(updated.summaryStatus.rawValue), poster \(updated.briefStatus.rawValue))"
+                ? "Transcript, summary, and brief updated"
+                : "Transcript updated (summary \(updated.summaryStatus.rawValue), brief \(updated.briefStatus.rawValue))"
         } catch {
             statusMessage = error.localizedDescription
         }

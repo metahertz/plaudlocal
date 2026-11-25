@@ -50,7 +50,7 @@ Settings → Processing chooses what happens to each new recording:
 
 For remote summaries, the server's model needs a large enough context window to read a whole meeting at once; see [Summary model](server/README.md#summary-model): the default 200,000-character limit is sized for a model with a 64k-token context, and it suggests a model to start with.
 
-In either AI mode, "Summarize" and "Build brief and poster" switch those steps off. The brief, poster and export always run on the phone. Once a server is set up, "Transcribe & summarize" on a note lets you send that one note to the server or keep it on the iPhone, whatever the mode.
+In either AI mode, "Summarize" and "Build brief" switch those steps off, and "Make poster image" turns off just the poster (the brief still gives the note its title and "At a glance"). The brief, poster and export always run on the phone. Once a server is set up, "Transcribe & summarize" on a note lets you send that one note to the server or keep it on the iPhone, whatever the mode.
 
 ## Current limits
 

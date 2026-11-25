@@ -42,7 +42,7 @@ final class PipelineActivity: @unchecked Sendable {
 enum PipelineRecovery {
     /// Fix metadata that no longer matches on-disk artifacts, and return notes that still need enrichment.
     @discardableResult
-    static func recoverInterrupted(store: NoteStore = NoteStore()) -> [NoteMetadata] {
+    static func recoverInterrupted(store: NoteStore = NoteStore(), options: PipelineOptions = .load()) -> [NoteMetadata] {
         guard let notes = try? store.allNotes() else { return [] }
         var needsEnrichment: [NoteMetadata] = []
 
@@ -77,7 +77,15 @@ enum PipelineRecovery {
             }
 
             if meta.briefStatus == .running {
-                meta.briefStatus = meta.posterFileName == nil ? .pending : .done
+                // Done once the brief was written, and the poster too if one is wanted; the run may
+                // have stopped before saving the brief's title, so restore that as well.
+                if let brief = store.loadBrief(noteId: meta.id),
+                   meta.posterFileName != nil || !(options.buildPoster && options.posterImage) {
+                    meta.briefStatus = .done
+                    if !meta.titleSetByUser { meta.title = brief.title }
+                } else {
+                    meta.briefStatus = .pending
+                }
                 changed = true
             }
 

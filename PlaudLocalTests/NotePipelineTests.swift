@@ -141,6 +141,70 @@ private struct DocumentTranscriber: Transcribing {
     }
 }
 
+extension NotePipelineTests {
+    func test_brief_without_the_poster_image_when_it_is_switched_off() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 21, duration: 5)
+        let brief = CountingBriefBuilder()
+        var pipeline = NotePipeline(
+            store: store,
+            transcriber: FakeTranscriber(text: "We agreed to ship on Friday."),
+            summarizer: Summarizer(forceUnavailable: true),
+            exporter: Exporter(settings: ExportSettings.load()),
+            options: PipelineOptions(summarize: false, buildPoster: true, posterImage: false)
+        )
+        pipeline.briefBuilder = brief
+        let done = try await pipeline.enrichImportedNote(meta)
+        XCTAssertEqual(done.briefStatus, .done)
+        XCTAssertNil(done.posterFileName)
+        XCTAssertEqual(done.title, "Ship on Friday")
+        XCTAssertNotNil(store.loadBrief(noteId: meta.id))
+        _ = try await pipeline.enrichImportedNote(done)
+        XCTAssertEqual(brief.calls, 1, "a finished brief without a poster isn't rebuilt")
+    }
+
+    func test_rebuilding_with_the_image_off_removes_the_old_poster() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        var meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 22, duration: 5)
+        try store.writeTranscript(noteId: meta.id, text: "Some words.")
+        try store.writePoster(noteId: meta.id, fileName: "old.png", pngData: Data([0x89]))
+        meta.posterFileName = "old.png"
+        meta.transcriptStatus = .done
+        try store.updateMetadata(meta)
+        var pipeline = NotePipeline(store: store, transcriber: FakeTranscriber(text: "Some words."),
+                                    summarizer: Summarizer(forceUnavailable: true),
+                                    exporter: Exporter(settings: ExportSettings.load()),
+                                    options: PipelineOptions(summarize: false, buildPoster: true, posterImage: false))
+        pipeline.briefBuilder = CountingBriefBuilder()
+        let rebuilt = try await pipeline.reprocess(noteId: meta.id)
+        XCTAssertNil(rebuilt.posterFileName)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.noteDirectory(id: meta.id).appendingPathComponent("old.png").path))
+    }
+
+    func test_turning_the_brief_off_keeps_an_earlier_brief_without_a_poster() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = NoteStore(root: root.appendingPathComponent("notes"))
+        let meta = try store.createNote(fromDecryptedAudio: Data("OggS".utf8), sessionId: 23, duration: 5)
+        try store.writeBrief(noteId: meta.id, brief: MeetingBrief(title: "Kept", topics: [], actionItems: []))
+        let pipeline = NotePipeline(store: store, transcriber: FakeTranscriber(text: "Words."),
+                                    summarizer: Summarizer(forceUnavailable: true),
+                                    exporter: Exporter(settings: ExportSettings.load()),
+                                    options: PipelineOptions(summarize: false, buildPoster: false))
+        let done = try await pipeline.reprocess(noteId: meta.id)
+        XCTAssertEqual(done.briefStatus, .done)
+    }
+}
+
+private final class CountingBriefBuilder: BriefBuilding, @unchecked Sendable {
+    private(set) var calls = 0
+    func build(transcript: String, summary: String?) async throws -> MeetingBrief {
+        calls += 1
+        return MeetingBrief(title: "Ship on Friday", topics: [], actionItems: [])
+    }
+}
+
 struct FakeTranscriber: Transcribing {
     let text: String
     func transcribe(audioURL: URL) async throws -> String { text }

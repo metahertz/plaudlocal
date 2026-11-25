@@ -133,12 +133,13 @@ struct NotePipeline {
             try store.updateMetadata(meta)
         }
 
-        if meta.briefStatus != .done || meta.posterFileName == nil {
+        if options.briefNeeded(for: meta) {
             if options.buildPoster {
                 meta = try await buildBriefAndPoster(
                     meta: meta,
                     transcript: transcript,
-                    summary: summaryText
+                    summary: summaryText,
+                    renderPoster: options.posterImage
                 )
             } else if meta.briefStatus != .skipped {
                 meta.briefStatus = .skipped
@@ -203,7 +204,7 @@ struct NotePipeline {
             )
         }
 
-        if !(meta.briefStatus == .done && meta.posterFileName != nil) {
+        if meta.briefStatus != .done {
             meta.briefStatus = .skipped
         }
         let readme = """
@@ -289,11 +290,14 @@ struct NotePipeline {
             }
 
             guard options.buildPoster else {
-                meta.briefStatus = meta.posterFileName == nil ? .skipped : .done
+                // Keep a brief made earlier (it still gives the note its title).
+                meta.briefStatus = store.loadBrief(noteId: meta.id) == nil ? .skipped : .done
                 try store.updateMetadata(meta)
                 return meta
             }
-            return try await buildBriefAndPoster(meta: meta, transcript: transcript, summary: summaryText)
+            return try await buildBriefAndPoster(
+                meta: meta, transcript: transcript, summary: summaryText, renderPoster: options.posterImage
+            )
         } catch {
             store.discardPendingTranscriptDocument(noteId: meta.id)
             meta.transcriptStatus = .failed
@@ -344,13 +348,15 @@ struct NotePipeline {
         let summary = store.readSummary(noteId: noteId)
         let began = PipelineActivity.shared.begin(noteId)
         defer { if began { PipelineActivity.shared.end(noteId) } }
-        return try await buildBriefAndPoster(meta: meta, transcript: transcript, summary: summary)
+        // An explicit "Rebuild poster" always renders the image, whatever the setting.
+        return try await buildBriefAndPoster(meta: meta, transcript: transcript, summary: summary, renderPoster: true)
     }
 
     private func buildBriefAndPoster(
         meta: NoteMetadata,
         transcript: String,
-        summary: String?
+        summary: String?,
+        renderPoster: Bool
     ) async throws -> NoteMetadata {
         var meta = meta
         meta.briefStatus = .running
@@ -361,10 +367,16 @@ struct NotePipeline {
             try store.writeBrief(noteId: meta.id, brief: brief)
             if !meta.titleSetByUser { meta.title = brief.title }
 
-            let fileName = BriefBuilder.posterFileName(sessionId: meta.sessionId, title: brief.title)
-            let png = try await renderPosterPNG(brief: brief, recordingDate: meta.recordingDate)
-            try store.writePoster(noteId: meta.id, fileName: fileName, pngData: png)
-            meta.posterFileName = fileName
+            if renderPoster {
+                let fileName = BriefBuilder.posterFileName(sessionId: meta.sessionId, title: brief.title)
+                let png = try await renderPosterPNG(brief: brief, recordingDate: meta.recordingDate)
+                try store.writePoster(noteId: meta.id, fileName: fileName, pngData: png)
+                meta.posterFileName = fileName
+            } else {
+                // A poster from an earlier brief would no longer match this one.
+                store.removePoster(noteId: meta.id)
+                meta.posterFileName = nil
+            }
             meta.briefStatus = .done
             try store.updateMetadata(meta)
             return meta

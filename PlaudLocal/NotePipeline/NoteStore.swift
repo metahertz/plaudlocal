@@ -164,6 +164,16 @@ struct NoteStore {
         try pngData.write(to: dir.appendingPathComponent(fileName), options: .atomic)
     }
 
+    /// Removes the note's poster image(s), e.g. when the brief is rebuilt with the image switched off.
+    func removePoster(noteId: String) {
+        let dir = noteDirectory(id: noteId)
+        if let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+            for file in files where file.pathExtension.lowercased() == "png" {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
     func posterURL(for meta: NoteMetadata) -> URL? {
         guard let name = meta.posterFileName else { return nil }
         let url = noteDirectory(id: meta.id).appendingPathComponent(name)

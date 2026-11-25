@@ -48,19 +48,30 @@ enum ProcessingMode: String, CaseIterable, Identifiable {
 /// Which optional pipeline steps run, in either AI mode.
 struct PipelineOptions: Equatable {
     static let summarizeKey = "pipeline.summarize"
+    /// Builds the brief (key kept from when this switch also controlled the poster).
     static let posterKey = "pipeline.poster"
+    static let posterImageKey = "pipeline.posterImage"
 
     static let summaryOffReason = "Summaries are turned off in Settings"
 
     var summarize = true
-    /// The brief also gives the note its title; without it the note keeps its recording label.
+    /// Build the brief (title, "At a glance", action items). The brief also gives the note its
+    /// title; without it the note keeps its recording label. (Named for when it also meant the poster.)
     var buildPoster = true
+    /// Also render the poster image from the brief. Ignored when the brief is off.
+    var posterImage = true
 
     static func load(defaults: UserDefaults = .standard) -> PipelineOptions {
         PipelineOptions(
             summarize: defaults.object(forKey: summarizeKey) as? Bool ?? true,
-            buildPoster: defaults.object(forKey: posterKey) as? Bool ?? true
+            buildPoster: defaults.object(forKey: posterKey) as? Bool ?? true,
+            posterImage: defaults.object(forKey: posterImageKey) as? Bool ?? true
         )
+    }
+
+    /// Whether a note's brief step still has work to do under these options.
+    func briefNeeded(for meta: NoteMetadata) -> Bool {
+        meta.briefStatus != .done || (buildPoster && posterImage && meta.posterFileName == nil)
     }
 }
 
