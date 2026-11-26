@@ -19,7 +19,12 @@ PLAUD_REMOTE_ADMIN_PASSWORD='choose-a-password' docker compose up -d --build
 
 Then open `http://<host>:8080` and sign in as `admin` with that password.
 If you don't set a password, one is generated on first start and printed once
-in the container log (`docker compose logs plaud-remote`).
+in the container log (`docker compose logs plaud-remote`). The log line doesn't survive
+the container being recreated, so save it. If you lose it, set `PLAUD_REMOTE_ADMIN_PASSWORD`
+and run `docker compose up -d` again (a plain `restart` doesn't pick up a new value). When it's
+set, it's used instead of the generated one, so keep it set for every later `up`, for example
+with a line `PLAUD_REMOTE_ADMIN_PASSWORD=new-password` in a `.env` file next to
+`docker-compose.yml`. Your data and the app's API token are unaffected.
 
 The app only connects over **HTTPS**, so the server needs TLS before the app
 can use it; see [HTTPS](#https) below.
